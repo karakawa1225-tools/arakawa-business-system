@@ -5,7 +5,7 @@
   "description": "ARAKAWA Business System - 中小企業向けERP",
   "scripts": {
     "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
-    "dev:3001": "concurrently -n backend,frontend \"npm run dev:backend\" \"npx wait-on -t 120 tcp:127.0.0.1:4000 && npm run dev:3001 --workspace=frontend\"",
+    "dev:3001": "concurrently -n backend,frontend \"npm run dev:backend\" \"npx wait-on -t 300 tcp:127.0.0.1:4000 && npm run dev:3001 --workspace=frontend\"",
     "dev:3001:clean": "npx --yes kill-port 4000 && npm run dev:3001",
     "dev:backend": "npm run dev --workspace=backend",
     "dev:frontend": "npm run dev --workspace=frontend",
