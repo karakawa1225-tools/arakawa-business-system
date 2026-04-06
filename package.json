@@ -1,0 +1,29 @@
+{
+  "name": "arakawa-business-system",
+  "private": true,
+  "version": "1.0.0",
+  "description": "ARAKAWA Business System - 中小企業向けERP",
+  "scripts": {
+    "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
+    "dev:3001": "concurrently -n backend,frontend \"npm run dev:backend\" \"npx wait-on -t 120 tcp:127.0.0.1:4000 && npm run dev:3001 --workspace=frontend\"",
+    "dev:3001:clean": "npx --yes kill-port 4000 && npm run dev:3001",
+    "dev:backend": "npm run dev --workspace=backend",
+    "dev:frontend": "npm run dev --workspace=frontend",
+    "build": "npm run build --workspace=backend && npm run build --workspace=frontend",
+    "db:init": "node database/run-schema.js",
+    "db:patch-setup-cols": "node database/apply-patch-setup-columns.js",
+    "db:patch-tax-divisions-and-expenses": "node database/patch-tax-divisions-and-expenses.js",
+    "db:patch-arap-ledger": "node database/patch-arap-ledger.js",
+    "db:patch-travel-expense": "node database/patch-travel-expense.js",
+    "db:patch-chart-account-divisions": "node database/patch-chart-account-divisions.js"
+  },
+  "workspaces": [
+    "backend",
+    "frontend"
+  ],
+  "devDependencies": {
+    "concurrently": "^9.1.0",
+    "pg": "^8.13.1",
+    "wait-on": "^8.0.1"
+  }
+}
