@@ -1,6 +1,6 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "installCommand": "npm install --workspaces --include-workspace-root",
-  "buildCommand": "npm exec -w frontend -- next build",
+  "buildCommand": "cd frontend && node ../node_modules/next/dist/bin/next build",
   "devCommand": "npm run dev:3001 --workspace=frontend"
 }
