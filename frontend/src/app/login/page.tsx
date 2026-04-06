@@ -2,14 +2,35 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
-import { api, setToken } from '@/lib/api';
+import { useEffect, useState } from 'react';
+import { api, getToken, setToken } from '@/lib/api';
 
 export default function LoginPage() {
   const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [err, setErr] = useState('');
+
+  useEffect(() => {
+    if (getToken()) {
+      router.replace('/home');
+      return;
+    }
+    let cancelled = false;
+    api<{ setupCompleted: boolean }>('/api/setup/status', { token: false })
+      .then((s) => {
+        if (cancelled) return;
+        if (!s.setupCompleted) {
+          router.replace('/setup');
+        }
+      })
+      .catch(() => {
+        /* API 不通時はログイン画面のまま（手動で /setup へ） */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [router]);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();

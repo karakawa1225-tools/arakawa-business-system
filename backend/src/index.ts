@@ -82,6 +82,16 @@ app.get('/health', async (_req, res) => {
   }
 });
 
+/** ブラウザで API のオリジン直下を開いたとき（GET / はエンドポイントではない旨を明示） */
+app.get('/', (_req, res) => {
+  res.json({
+    service: 'arakawa-backend',
+    message: 'この URL は REST API です。ルート「/」には機能はありません。',
+    tryGet: '/health',
+    apiPrefix: '/api',
+  });
+});
+
 app.use('/api/auth', authRouter);
 app.use('/api/setup', setupRouter);
 app.use('/api/customers', customersRouter);

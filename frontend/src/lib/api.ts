@@ -1,7 +1,10 @@
 /**
- * ブラウザ: 相対パス `/api/...` のみ（フロントと同一オリジン）。
+ * ブラウザ（ローカル）: 相対パス `/api/...` のみ（フロントと同一オリジン）。
  * ページが localhost で API が 127.0.0.1 だと別オリジンになり、環境によって POST/PATCH/DELETE だけ失敗することがある。
  * `app/api/[[...path]]/route.ts` が全メソッドをバックエンドへ転送する。
+ *
+ * ブラウザ（本番ホスト）: `NEXT_PUBLIC_API_URL` があればバックエンドへ直接フェッチ（CORS は Express で許可）。
+ * Vercel の Route Handler 経由だけだと環境変数未設定やプロキシ障害で「Failed to fetch」になりやすいため。
  *
  * サーバー側: BACKEND_PROXY_TARGET → NEXT_PUBLIC_API_URL → http://127.0.0.1:4000
  */
@@ -9,8 +12,46 @@ function normalizeApiOrigin(raw: string): string {
   return raw.replace(/\/+$/, '');
 }
 
+/** HTTPS ページから http:// の API を叩くとミックスコンテンツで fetch が失敗する（Failed to fetch） */
+function normalizeBrowserPublicApiOrigin(raw: string): string {
+  let b = normalizeApiOrigin(raw);
+  if (
+    typeof window !== 'undefined' &&
+    window.location.protocol === 'https:' &&
+    /^http:\/\//i.test(b)
+  ) {
+    b = `https://${b.slice('http://'.length)}`;
+  }
+  return b;
+}
+
+function isBrowserLocalHost(): boolean {
+  if (typeof window === 'undefined') return false;
+  const h = window.location.hostname;
+  return h === 'localhost' || h === '127.0.0.1' || h === '[::1]';
+}
+
+function networkErrorHint(url: string, net: unknown): string {
+  if (!isBrowserLocalHost() && net instanceof Error && /failed to fetch/i.test(net.message)) {
+    if (url.startsWith('http')) {
+      return (
+        ' HTTPS のページから http:// の API はブロックされることがあります。Vercel の NEXT_PUBLIC_API_URL を https://（Render の URL）にし、再デプロイしてください。'
+      );
+    }
+    return (
+      ' Vercel の環境変数 BACKEND_PROXY_TARGET と NEXT_PUBLIC_API_URL に Render の API（https://...、末尾に /api なし）を設定し、保存後に再デプロイしてください。'
+    );
+  }
+  return '';
+}
+
 export const apiBaseUrl = (): string => {
   if (typeof window !== 'undefined') {
+    const pub =
+      typeof process.env.NEXT_PUBLIC_API_URL === 'string' && process.env.NEXT_PUBLIC_API_URL.trim();
+    if (pub && !isBrowserLocalHost()) {
+      return normalizeBrowserPublicApiOrigin(pub);
+    }
     return '';
   }
   const fromEnv =
@@ -86,9 +127,13 @@ export async function api<T>(
       headers,
     });
   } catch (net) {
+    const localHint = isBrowserLocalHost()
+      ? ' ターミナルでバックエンドが起動しているか確認してください。'
+      : '';
     throw new Error(
-      `APIに接続できません（${url}）。ターミナルでバックエンドが起動しているか確認してください。` +
-        (net instanceof Error ? ` (${net.message})` : '')
+      `APIに接続できません（${url}）。${localHint}` +
+        (net instanceof Error ? ` (${net.message})` : '') +
+        networkErrorHint(url, net)
     );
   }
   const text = await res.text();
