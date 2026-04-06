@@ -116,6 +116,15 @@ setupRouter.post('/company', async (req, res) => {
     );
     res.json({ companyId: r.rows[0].id, step: 1 });
   } catch (e) {
+    const code = (e as { code?: string }).code;
+    if (code === '42P01') {
+      res.status(503).json({
+        error: 'companies テーブルがありません。',
+        hint:
+          'PostgreSQL に schema が未適用です。ローカルでプロジェクトルートから `npm run db:init`（または `node database/run-schema.js`）を、Render の DATABASE_URL と同じ DB に対して実行するか、Supabase の SQL Editor で `database/schema.sql` を実行してください。',
+      });
+      return;
+    }
     sendServerError(res, e);
   }
 });
