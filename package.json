@@ -23,7 +23,10 @@
   ],
   "devDependencies": {
     "concurrently": "^9.1.0",
+    "next": "^15.0.3",
     "pg": "^8.13.1",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
     "wait-on": "^8.0.1"
   }
 }
