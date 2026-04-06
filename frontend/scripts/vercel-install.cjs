@@ -1,35 +1,23 @@
 /**
- * Vercel で Root Directory = frontend のとき、`cd .. && npm install` が環境によって失敗する（exit 254 等）のを避ける。
- * モノレポルートをパスで解決してから npm install する。
+ * Vercel で Root Directory = frontend のときの install。
  *
- * Vercel の Build では NODE_ENV=production が有効になり、npm が devDependencies を落とすと
- * Next / eslint 等が入らず後続で失敗することがあるため、インストール時は include=dev を明示する。
+ * 親ディレクトリの package.json を必須にすると、Vercel のチェックアウトやパス差で exit 1 になる。
+ * cwd を frontend に置き `npm install` する（npm は親の workspaces / package-lock を辿る）。
+ *
+ * Build 時は NODE_ENV=production になりがちなので dev 依存を明示的に含める。
  */
-const fs = require('fs');
 const path = require('path');
 const { spawnSync } = require('child_process');
 
-const scriptsDir = __dirname;
-const frontendDir = path.join(scriptsDir, '..');
-const monorepoRoot = path.join(frontendDir, '..');
-const rootPkg = path.join(monorepoRoot, 'package.json');
+const frontendDir = path.join(__dirname, '..');
 
-if (!fs.existsSync(rootPkg)) {
-  console.error(
-    '[vercel-install] Monorepo root not found. Expected package.json at:',
-    rootPkg
-  );
-  process.exit(1);
-}
-
-console.log('[vercel-install] monorepoRoot=', monorepoRoot);
-
-/** インストールだけ production モードにしない（ワークスペースの dev 依存が必要） */
 const installEnv = { ...process.env };
 delete installEnv.NODE_ENV;
 
+console.log('[vercel-install] cwd=', frontendDir);
+
 const result = spawnSync('npm', ['install', '--include=dev'], {
-  cwd: monorepoRoot,
+  cwd: frontendDir,
   stdio: 'inherit',
   env: installEnv,
   shell: true,
