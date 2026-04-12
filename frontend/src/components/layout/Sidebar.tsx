@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useEffect } from 'react';
 
 type Item = { href: string; label: string };
 
@@ -54,17 +55,43 @@ const groups: { title: string; items: Item[] }[] = [
   },
 ];
 
-export function Sidebar() {
+export type SidebarProps = {
+  /** When false on viewports below `lg`, the panel is slid off-screen. */
+  mobileOpen?: boolean;
+  /** Called after navigating (mobile) or when overlay requests close. */
+  onClose?: () => void;
+};
+
+export function Sidebar({ mobileOpen = false, onClose }: SidebarProps) {
   const pathname = usePathname();
 
+  useEffect(() => {
+    onClose?.();
+  }, [pathname, onClose]);
+
+  const navLinkClass = (active: boolean) =>
+    `block rounded-md px-2 py-1.5 text-sm transition-colors ${
+      active
+        ? 'bg-aqua-100 font-medium text-navy-900'
+        : 'text-navy-800/80 hover:bg-aqua-50 hover:text-navy-900'
+    }`;
+
   return (
-    <aside className="fixed left-0 top-0 z-40 flex h-screen w-60 flex-col border-r border-aqua-300 bg-aqua-50/90 backdrop-blur">
-      <div className="flex h-14 items-center border-b border-aqua-300 px-4">
-        <Link href="/home" className="text-sm font-semibold tracking-tight text-navy-900">
+    <aside
+      className={`fixed left-0 top-0 z-50 flex h-screen w-[min(100vw-3rem,16rem)] max-w-[16rem] flex-col border-r border-aqua-300 bg-aqua-50/95 shadow-xl backdrop-blur transition-transform duration-200 ease-out lg:z-40 lg:w-60 lg:max-w-none lg:translate-x-0 lg:shadow-none ${
+        mobileOpen ? 'translate-x-0' : '-translate-x-full'
+      }`}
+    >
+      <div className="flex h-14 shrink-0 items-center border-b border-aqua-300 px-4">
+        <Link
+          href="/home"
+          className="text-sm font-semibold tracking-tight text-navy-900"
+          onClick={onClose}
+        >
           ARAKAWA <span className="font-normal text-gunmetal-600">Business</span>
         </Link>
       </div>
-      <nav className="flex-1 overflow-y-auto px-2 py-4">
+      <nav className="flex-1 overflow-y-auto px-2 py-4" aria-label="メインナビゲーション">
         {groups.map((g) => (
           <div key={g.title} className="mb-6">
             <p className="mb-2 px-2 text-[10px] font-semibold uppercase tracking-wider text-aqua-700">
@@ -75,14 +102,7 @@ export function Sidebar() {
                 const active = pathname === item.href || pathname.startsWith(item.href + '/');
                 return (
                   <li key={item.href}>
-                    <Link
-                      href={item.href}
-                      className={`block rounded-md px-2 py-1.5 text-sm transition-colors ${
-                        active
-                          ? 'bg-aqua-100 font-medium text-navy-900'
-                          : 'text-navy-800/80 hover:bg-aqua-50 hover:text-navy-900'
-                      }`}
-                    >
+                    <Link href={item.href} className={navLinkClass(active)} onClick={onClose}>
                       {item.label}
                     </Link>
                   </li>
@@ -96,6 +116,7 @@ export function Sidebar() {
         <Link
           href="/portal/login"
           className="block text-xs text-navy-800/80 hover:text-navy-900"
+          onClick={onClose}
         >
           顧客ポータルログイン →
         </Link>
