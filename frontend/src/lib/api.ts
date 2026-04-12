@@ -12,9 +12,17 @@ function normalizeApiOrigin(raw: string): string {
   return raw.replace(/\/+$/, '');
 }
 
-/** HTTPS ページから http:// の API を叩くとミックスコンテンツで fetch が失敗する（Failed to fetch） */
+/**
+ * 本番ブラウザ向け API オリジン。
+ * - スキーム省略（example.onrender.com）→ https を付与
+ * - HTTPS ページから http:// の API はミックスコンテンツでブロックされる → https に昇格
+ */
 function normalizeBrowserPublicApiOrigin(raw: string): string {
-  let b = normalizeApiOrigin(raw);
+  let b = normalizeApiOrigin(raw.trim());
+  if (!b) return b;
+  if (!/^https?:\/\//i.test(b)) {
+    b = `https://${b}`;
+  }
   if (
     typeof window !== 'undefined' &&
     window.location.protocol === 'https:' &&
@@ -33,13 +41,19 @@ function isBrowserLocalHost(): boolean {
 
 function networkErrorHint(url: string, net: unknown): string {
   if (!isBrowserLocalHost() && net instanceof Error && /failed to fetch/i.test(net.message)) {
-    if (url.startsWith('http')) {
+    // https:// も startsWith('http') になるため、ミックスコンテンツは http:// のみ判定する
+    if (url.startsWith('http://')) {
       return (
-        ' HTTPS のページから http:// の API はブロックされることがあります。Vercel の NEXT_PUBLIC_API_URL を https://（Render の URL）にし、再デプロイしてください。'
+        ' HTTPS のページから http:// の API はブロックされます。NEXT_PUBLIC_API_URL を https://（例: https://arakawa-business-system.onrender.com）で始め、末尾に /api を付けず再デプロイしてください。'
+      );
+    }
+    if (url.startsWith('https://')) {
+      return (
+        ' Render のスリープ・CORS・一時的なネットワーク障害の可能性があります。数分後に再試行するか、Vercel で NEXT_PUBLIC_API_URL を未設定にして同一オリジンの /api プロキシのみ使う方法もあります。'
       );
     }
     return (
-      ' Vercel の環境変数 BACKEND_PROXY_TARGET と NEXT_PUBLIC_API_URL に Render の API（https://...、末尾に /api なし）を設定し、保存後に再デプロイしてください。'
+      ' Vercel の環境変数 BACKEND_PROXY_TARGET / NEXT_PUBLIC_API_URL に Render のオリジン（https://...、末尾に /api なし）を設定し、再デプロイしてください。'
     );
   }
   return '';

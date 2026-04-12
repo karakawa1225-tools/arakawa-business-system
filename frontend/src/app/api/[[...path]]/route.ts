@@ -14,6 +14,10 @@ function normalizeProxyTarget(raw: string): string {
   let b = raw.trim().replace(/\/+$/, '');
   // 誤って .../api まで指定すると /api/api/... となり一覧は通っても一部が 404 になる
   if (b.endsWith('/api')) b = b.slice(0, -4);
+  // Render 等は https 推奨。http のみだとリダイレクトや接続差分で不安定になることがある
+  if (/^http:\/\/[^/]+\.onrender\.com/i.test(b)) {
+    b = `https://${b.slice('http://'.length)}`;
+  }
   return b;
 }
 
