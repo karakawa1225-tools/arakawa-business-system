@@ -1,6 +1,14 @@
 import { Router } from 'express';
 import { query } from '../db/pool.js';
 import { requireStaff, blockViewerWrite, type AuthedRequest } from '../middleware/auth.js';
+import { parseCsvToRecords, pickCell } from '../utils/csvTools.js';
+
+function numOrNull(v: string): number | null {
+  const t = v.trim();
+  if (!t) return null;
+  const n = Number(t);
+  return Number.isFinite(n) ? n : null;
+}
 
 export const productsRouter = Router();
 productsRouter.use(requireStaff);
@@ -13,6 +21,79 @@ productsRouter.get('/', async (req: AuthedRequest, res) => {
     [req.staff!.companyId]
   );
   res.json(r.rows);
+});
+
+productsRouter.post('/import-csv', blockViewerWrite, async (req: AuthedRequest, res) => {
+  const b = req.body as { csvText?: string };
+  const csvText = typeof b.csvText === 'string' ? b.csvText : '';
+  if (!csvText.trim()) {
+    res.status(400).json({ error: 'CSV本文が空です' });
+    return;
+  }
+  let rows: Record<string, string>[];
+  try {
+    rows = parseCsvToRecords(csvText);
+  } catch (e: unknown) {
+    res.status(400).json({ error: `CSVの解析に失敗しました: ${e instanceof Error ? e.message : String(e)}` });
+    return;
+  }
+  const companyId = req.staff!.companyId;
+  const created: string[] = [];
+  const errors: { line: number; message: string }[] = [];
+  let lineBase = 2;
+  for (const row of rows) {
+    const productCode = pickCell(row, 'product_code', 'productcode', '商品コード');
+    const name = pickCell(row, 'name', '商品名');
+    if (!productCode || !name) {
+      errors.push({ line: lineBase, message: '商品コード・商品名は必須です' });
+      lineBase += 1;
+      continue;
+    }
+    const supplierCode = pickCell(row, 'supplier_code', 'suppliercode', '仕入先コード');
+    let supplierId: string | null = null;
+    if (supplierCode) {
+      const sr = await query(`SELECT id FROM suppliers WHERE company_id = $1 AND supplier_code = $2`, [
+        companyId,
+        supplierCode,
+      ]);
+      if (!sr.rows[0]) {
+        errors.push({ line: lineBase, message: `仕入先コード「${supplierCode}」が見つかりません（先に仕入先マスタへ登録してください）` });
+        lineBase += 1;
+        continue;
+      }
+      supplierId = String(sr.rows[0].id);
+    }
+    try {
+      const r = await query(
+        `INSERT INTO products (company_id, product_code, name, category, manufacturer, manufacturer_part_no, trusco_order_code, supplier_id, purchase_price, sale_price, photo_url, spec_text)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING id`,
+        [
+          companyId,
+          productCode,
+          name,
+          pickCell(row, 'category', 'カテゴリ') || null,
+          pickCell(row, 'manufacturer', 'メーカー') || null,
+          pickCell(row, 'manufacturer_part_no', 'manufacturerpartno', 'メーカー品番') || null,
+          pickCell(row, 'trusco_order_code', 'truscoordercode', 'トラスコ発注コード') || null,
+          supplierId,
+          numOrNull(pickCell(row, 'purchase_price', 'purchaseprice', '仕入価格')),
+          numOrNull(pickCell(row, 'sale_price', 'saleprice', '販売価格')),
+          null,
+          pickCell(row, 'spec_text', 'spectext', '仕様・備考') || null,
+        ]
+      );
+      created.push(String(r.rows[0].id));
+    } catch (e: unknown) {
+      const err = e as { code?: string };
+      if (err.code === '23505') {
+        errors.push({ line: lineBase, message: `商品コード「${productCode}」が重複しています` });
+      } else {
+        errors.push({ line: lineBase, message: e instanceof Error ? e.message : '登録に失敗しました' });
+      }
+    }
+    lineBase += 1;
+  }
+  res.json({ ok: true, created: created.length, errors });
 });
 
 productsRouter.get('/:id', async (req: AuthedRequest, res) => {

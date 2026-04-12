@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { PageTitle } from '@/components/ui/PageTitle';
 import { Card } from '@/components/ui/Card';
+import { PcOnlyRegisterShell } from '@/components/masters/PcOnlyRegisterShell';
 import { CurrencyInput } from '@/components/ui/CurrencyInput';
 import { JpegPngImageField } from '@/components/ui/JpegPngImageField';
 import { api } from '@/lib/api';
@@ -87,8 +88,9 @@ export default function NewProductPage() {
         title="商品登録"
         description="必須項目を入力し、写真は撮影またはファイルから追加できます。"
       />
-      <Card className="max-w-3xl">
-        <form onSubmit={submit} className="space-y-8">
+      <PcOnlyRegisterShell listHref="/products" resourceLabel="商品">
+        <Card className="max-w-3xl">
+          <form onSubmit={submit} className="space-y-8">
           <section className="space-y-4">
             <SectionTitle>基本情報</SectionTitle>
             <div className="grid gap-4 sm:grid-cols-2">
@@ -213,8 +215,9 @@ export default function NewProductPage() {
               保存する
             </button>
           </div>
-        </form>
-      </Card>
+          </form>
+        </Card>
+      </PcOnlyRegisterShell>
     </>
   );
 }

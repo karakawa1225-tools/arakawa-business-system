@@ -1,10 +1,15 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { PageTitle } from '@/components/ui/PageTitle';
 import { Card } from '@/components/ui/Card';
+import { MasterCsvPanel } from '@/components/masters/MasterCsvPanel';
 import { api } from '@/lib/api';
+import {
+  downloadCustomerImportTemplateCsv,
+  downloadCustomerMasterDescriptionCsv,
+} from '@/lib/masterCsv';
 
 type Customer = {
   id: string;
@@ -18,20 +23,37 @@ type Customer = {
 export default function CustomersPage() {
   const [rows, setRows] = useState<Customer[]>([]);
 
-  useEffect(() => {
+  const load = useCallback(() => {
     api<Customer[]>('/api/customers').then(setRows).catch(() => setRows([]));
   }, []);
 
+  useEffect(() => {
+    load();
+  }, [load]);
+
   return (
     <>
-      <div className="mb-8 flex items-start justify-between">
+      <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <PageTitle title="顧客一覧" description="顧客マスタ" />
-        <Link
-          href="/crm/customers/new"
-          className="rounded-lg bg-navy-900 px-4 py-2 text-sm font-medium text-white hover:bg-navy-800"
-        >
-          顧客登録
-        </Link>
+        <div className="flex max-w-full flex-col gap-3 sm:items-end">
+          <div className="flex flex-wrap items-center gap-2">
+            <Link
+              href="/crm/customers/new"
+              className="hidden rounded-lg bg-navy-900 px-4 py-2 text-sm font-medium text-white hover:bg-navy-800 lg:inline-flex"
+            >
+              顧客登録
+            </Link>
+            <p className="text-xs leading-snug text-gunmetal-600 lg:hidden">
+              手動の新規登録はPC（画面幅1024px以上）のみ。スマホ・タブレットはCSV取り込みをご利用ください。
+            </p>
+          </div>
+          <MasterCsvPanel
+            importApiPath="/api/customers/import-csv"
+            onImported={load}
+            onDownloadGuide={downloadCustomerMasterDescriptionCsv}
+            onDownloadTemplate={downloadCustomerImportTemplateCsv}
+          />
+        </div>
       </div>
       <Card className="overflow-x-auto p-0">
         <table className="w-full text-left text-sm">

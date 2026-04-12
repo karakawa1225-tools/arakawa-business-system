@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { PageTitle } from '@/components/ui/PageTitle';
 import { Card } from '@/components/ui/Card';
+import { PcOnlyRegisterShell } from '@/components/masters/PcOnlyRegisterShell';
 import { api } from '@/lib/api';
 
 export default function NewSupplierPage() {
@@ -47,8 +48,9 @@ export default function NewSupplierPage() {
   return (
     <>
       <PageTitle title="仕入先登録" />
-      <Card className="max-w-2xl">
-        <form onSubmit={submit} className="space-y-3">
+      <PcOnlyRegisterShell listHref="/purchase/suppliers" resourceLabel="仕入先">
+        <Card className="max-w-2xl">
+          <form onSubmit={submit} className="space-y-3">
           <input
             required
             placeholder="仕入先コード *"
@@ -115,8 +117,9 @@ export default function NewSupplierPage() {
               保存
             </button>
           </div>
-        </form>
-      </Card>
+          </form>
+        </Card>
+      </PcOnlyRegisterShell>
     </>
   );
 }

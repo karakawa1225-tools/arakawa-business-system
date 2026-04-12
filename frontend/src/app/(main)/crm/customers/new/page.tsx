@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { PageTitle } from '@/components/ui/PageTitle';
 import { Card } from '@/components/ui/Card';
+import { PcOnlyRegisterShell } from '@/components/masters/PcOnlyRegisterShell';
 import { api } from '@/lib/api';
 
 export default function NewCustomerPage() {
@@ -47,8 +48,9 @@ export default function NewCustomerPage() {
   return (
     <>
       <PageTitle title="顧客登録" />
-      <Card className="max-w-xl">
-        <form onSubmit={submit} className="space-y-4">
+      <PcOnlyRegisterShell listHref="/crm/customers" resourceLabel="顧客">
+        <Card className="max-w-xl">
+          <form onSubmit={submit} className="space-y-4">
           <div className="grid gap-4 sm:grid-cols-2">
             <Field label="顧客コード *" value={f.customerCode} onChange={(v) => setF({ ...f, customerCode: v })} />
             <Field label="会社名 *" value={f.companyName} onChange={(v) => setF({ ...f, companyName: v })} />
@@ -76,8 +78,9 @@ export default function NewCustomerPage() {
               保存
             </button>
           </div>
-        </form>
-      </Card>
+          </form>
+        </Card>
+      </PcOnlyRegisterShell>
     </>
   );
 }
