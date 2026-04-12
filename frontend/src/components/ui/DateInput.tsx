@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { formatDateJa, normalizeToYmd, parseFlexibleDateToYmd } from '@/lib/format';
 import { CalendarPickerIcon } from '@/components/ui/CalendarPickerIcon';
 
@@ -24,7 +24,6 @@ export type DateInputProps = Omit<
  * カレンダーで選択可能。
  */
 export function DateInput({ value, onChange, className, disabled, required, ...rest }: DateInputProps) {
-  const hiddenRef = useRef<HTMLInputElement>(null);
   const ymd = normalizeToYmd(value);
   const [draft, setDraft] = useState(() => (ymd ? formatDateJa(ymd) : ''));
 
@@ -83,34 +82,30 @@ export function DateInput({ value, onChange, className, disabled, required, ...r
         autoComplete="off"
         {...rest}
       />
-      <input
-        ref={hiddenRef}
-        type="date"
-        className="sr-only"
-        tabIndex={-1}
-        aria-hidden
-        value={ymd && ISO.test(ymd) ? ymd : ''}
-        onChange={onPickerChange}
-        disabled={disabled}
-      />
-      <button
-        type="button"
-        disabled={disabled}
+      {/*
+        iOS Safari は sr-only + programmatic click() で date ピッカーが開かないことがあるため、
+        ネイティブ input をボタン表示域に重ねて直接タップで開く。
+      */}
+      <div
         title="日付をカレンダーで選択"
-        aria-label="日付をカレンダーで選択"
-        className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-navy-950/30 bg-navy-900 text-white shadow-sm transition-[background-color,box-shadow,transform] hover:bg-navy-800 hover:shadow-md active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-navy-400 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-40"
-        onClick={() => {
-          const el = hiddenRef.current;
-          if (!el) return;
-          try {
-            el.showPicker();
-          } catch {
-            el.click();
-          }
-        }}
+        className={`relative inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-navy-950/30 bg-navy-900 text-white shadow-sm transition-[background-color,box-shadow,transform] sm:h-9 sm:w-9 ${
+          disabled
+            ? 'pointer-events-none opacity-40'
+            : 'hover:bg-navy-800 hover:shadow-md active:scale-[0.97] focus-within:ring-2 focus-within:ring-navy-400 focus-within:ring-offset-2'
+        }`}
       >
-        <CalendarPickerIcon className="h-[1.125rem] w-[1.125rem]" />
-      </button>
+        <input
+          type="date"
+          className="absolute inset-0 z-10 m-0 h-full w-full cursor-pointer opacity-0 disabled:cursor-not-allowed"
+          value={ymd && ISO.test(ymd) ? ymd : ''}
+          onChange={onPickerChange}
+          disabled={disabled}
+          aria-label="日付をカレンダーで選択"
+        />
+        <span className="pointer-events-none flex items-center justify-center">
+          <CalendarPickerIcon className="h-[1.125rem] w-[1.125rem]" />
+        </span>
+      </div>
     </div>
   );
 }
