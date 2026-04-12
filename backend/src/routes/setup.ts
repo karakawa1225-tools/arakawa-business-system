@@ -190,10 +190,29 @@ setupRouter.post('/user', async (req, res) => {
       res.status(400).json({ error: 'メール・パスワード・氏名は必須です' });
       return;
     }
-    const co = await query<{ id: string }>(`SELECT id FROM companies ORDER BY created_at LIMIT 1`);
+    const co = await query<{ id: string; setup_completed: boolean }>(
+      `SELECT id, setup_completed FROM companies ORDER BY created_at LIMIT 1`
+    );
     const companyId = co.rows[0]?.id;
     if (!companyId) {
       res.status(400).json({ error: '会社が未登録です' });
+      return;
+    }
+    if (co.rows[0]?.setup_completed) {
+      res.status(400).json({
+        error: 'セットアップは完了済みです。ユーザーの追加は管理者メニュー（ユーザー管理）から行ってください。',
+      });
+      return;
+    }
+    const uc = await query<{ n: string }>(
+      `SELECT COUNT(*)::text AS n FROM users WHERE company_id = $1`,
+      [companyId]
+    );
+    if (parseInt(uc.rows[0]?.n ?? '0', 10) > 0) {
+      res.status(400).json({
+        error:
+          '既にユーザーが登録されています。追加のユーザーは管理者メニューの「ユーザー管理」からのみ登録できます。',
+      });
       return;
     }
     const hash = await hashPassword(password);

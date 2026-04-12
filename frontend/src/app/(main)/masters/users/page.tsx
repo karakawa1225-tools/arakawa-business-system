@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
+import { AdminGate } from '@/components/admin/AdminGate';
 import { PageTitle } from '@/components/ui/PageTitle';
 import { Card } from '@/components/ui/Card';
 import { api, apiDelete } from '@/lib/api';
@@ -37,10 +38,10 @@ export default function UsersMasterPage() {
   }
 
   return (
-    <>
+    <AdminGate>
       <PageTitle
         title="ユーザー管理"
-        description="一覧から編集へ進みます。新規追加は入力画面で行い、保存後に一覧へ戻ります。"
+        description="ログインアカウントの追加・変更はこの画面のみです。新規は「新規ユーザー」から登録し、保存後に一覧へ戻ります。"
       />
       {err && <p className="mb-4 text-sm text-red-600">{err}</p>}
       <Card className="mb-6 flex flex-wrap items-center justify-between gap-3 p-4">
@@ -105,6 +106,6 @@ export default function UsersMasterPage() {
           </tbody>
         </table>
       </Card>
-    </>
+    </AdminGate>
   );
 }

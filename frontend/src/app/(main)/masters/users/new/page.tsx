@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { AdminGate } from '@/components/admin/AdminGate';
 import { PageTitle } from '@/components/ui/PageTitle';
 import { Card } from '@/components/ui/Card';
 import { api } from '@/lib/api';
@@ -40,7 +41,7 @@ export default function UsersNewPage() {
   }
 
   return (
-    <>
+    <AdminGate>
       <PageTitle title="ユーザー・新規" description="登録後、一覧に戻ります。" />
       <div className="mb-4">
         <Link href="/masters/users" className="text-sm text-navy-900 underline">
@@ -126,6 +127,6 @@ export default function UsersNewPage() {
           </div>
         </form>
       </Card>
-    </>
+    </AdminGate>
   );
 }

@@ -60,3 +60,11 @@ export function blockViewerWrite(req: AuthedRequest, res: Response, next: NextFu
   }
   next();
 }
+
+export function requireAdmin(req: AuthedRequest, res: Response, next: NextFunction) {
+  if (req.staff?.role !== 'admin') {
+    res.status(403).json({ error: '管理者のみ' });
+    return;
+  }
+  next();
+}

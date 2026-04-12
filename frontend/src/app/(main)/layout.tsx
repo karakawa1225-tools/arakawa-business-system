@@ -1,10 +1,5 @@
-import { AppShell } from '@/components/layout/AppShell';
-import { AuthGuard } from '@/components/layout/AuthGuard';
+import { MainLayoutClient } from '@/components/layout/MainLayoutClient';
 
 export default function MainLayout({ children }: { children: React.ReactNode }) {
-  return (
-    <AuthGuard>
-      <AppShell>{children}</AppShell>
-    </AuthGuard>
-  );
+  return <MainLayoutClient>{children}</MainLayoutClient>;
 }

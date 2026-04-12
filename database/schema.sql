@@ -14,6 +14,8 @@ CREATE TABLE companies (
   default_tax_rate NUMERIC(5,2) NOT NULL DEFAULT 10.00,
   setup_completed BOOLEAN NOT NULL DEFAULT FALSE,
   setup_step SMALLINT NOT NULL DEFAULT 0,
+  operations_policy TEXT,
+  accounting_policy TEXT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );

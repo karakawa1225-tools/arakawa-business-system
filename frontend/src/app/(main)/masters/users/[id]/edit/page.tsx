@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
+import { AdminGate } from '@/components/admin/AdminGate';
 import { PageTitle } from '@/components/ui/PageTitle';
 import { Card } from '@/components/ui/Card';
 import { api } from '@/lib/api';
@@ -80,15 +81,23 @@ export default function UsersEditPage() {
   }
 
   if (!id) {
-    return <p className="text-sm text-gunmetal-600">ID が不正です。</p>;
+    return (
+      <AdminGate>
+        <p className="text-sm text-gunmetal-600">ID が不正です。</p>
+      </AdminGate>
+    );
   }
 
   if (loading) {
-    return <p className="text-sm text-gunmetal-600">読み込み中…</p>;
+    return (
+      <AdminGate>
+        <p className="text-sm text-gunmetal-600">読み込み中…</p>
+      </AdminGate>
+    );
   }
 
   return (
-    <>
+    <AdminGate>
       <PageTitle title="ユーザー・編集" description="保存後、一覧に戻ります。" />
       <div className="mb-4">
         <Link href="/masters/users" className="text-sm text-navy-900 underline">
@@ -178,6 +187,6 @@ export default function UsersEditPage() {
           </div>
         </form>
       </Card>
-    </>
+    </AdminGate>
   );
 }

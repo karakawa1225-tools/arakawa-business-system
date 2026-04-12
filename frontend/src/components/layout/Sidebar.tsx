@@ -2,11 +2,12 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
+import { useStaffProfile } from '@/context/StaffProfileContext';
 
 type Item = { href: string; label: string };
 
-const groups: { title: string; items: Item[] }[] = [
+const baseGroups: { title: string; items: Item[] }[] = [
   {
     title: 'メイン',
     items: [
@@ -45,14 +46,6 @@ const groups: { title: string; items: Item[] }[] = [
       { href: '/accounting/travel', label: '出張旅費' },
     ],
   },
-  {
-    title: 'その他',
-    items: [
-      { href: '/reports', label: 'レポート' },
-      { href: '/masters', label: 'マスタ管理' },
-      { href: '/settings', label: '設定' },
-    ],
-  },
 ];
 
 export type SidebarProps = {
@@ -64,6 +57,17 @@ export type SidebarProps = {
 
 export function Sidebar({ mobileOpen = false, onClose }: SidebarProps) {
   const pathname = usePathname();
+  const { profile } = useStaffProfile();
+
+  const groups = useMemo(() => {
+    const other: Item[] = [
+      ...(profile?.role === 'admin' ? [{ href: '/admin', label: '管理者メニュー' }] : []),
+      { href: '/reports', label: 'レポート' },
+      { href: '/masters', label: 'マスタ管理' },
+      { href: '/settings', label: '設定' },
+    ];
+    return [...baseGroups, { title: 'その他', items: other }];
+  }, [profile?.role]);
 
   useEffect(() => {
     onClose?.();
@@ -99,7 +103,9 @@ export function Sidebar({ mobileOpen = false, onClose }: SidebarProps) {
             </p>
             <ul className="space-y-0.5">
               {g.items.map((item) => {
-                const active = pathname === item.href || pathname.startsWith(item.href + '/');
+                const active =
+                  pathname === item.href ||
+                  (item.href !== '/admin' && pathname.startsWith(item.href + '/'));
                 return (
                   <li key={item.href}>
                     <Link href={item.href} className={navLinkClass(active)} onClick={onClose}>

@@ -15,7 +15,8 @@
     "db:patch-tax-divisions-and-expenses": "node database/patch-tax-divisions-and-expenses.js",
     "db:patch-arap-ledger": "node database/patch-arap-ledger.js",
     "db:patch-travel-expense": "node database/patch-travel-expense.js",
-    "db:patch-chart-account-divisions": "node database/patch-chart-account-divisions.js"
+    "db:patch-chart-account-divisions": "node database/patch-chart-account-divisions.js",
+    "db:patch-company-policies": "node database/patch-company-policies.js"
   },
   "workspaces": [
     "backend",
