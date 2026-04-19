@@ -5,7 +5,7 @@ import { useEffect, useState } from 'react';
 import { PageTitle } from '@/components/ui/PageTitle';
 import { Card } from '@/components/ui/Card';
 import { api } from '@/lib/api';
-import { formatDateJa } from '@/lib/format';
+import { formatDateJa, formatJPY } from '@/lib/format';
 
 type Row = {
   id: string;
@@ -55,7 +55,7 @@ export default function EstimatesPage() {
                 <td className="px-4 py-3">{r.title ?? '—'}</td>
                 <td className="px-4 py-3">{formatDateJa(r.issue_date)}</td>
                 <td className="px-4 py-3">{r.status}</td>
-                <td className="px-4 py-3 text-right">¥{r.total}</td>
+                <td className="px-4 py-3 text-right tabular-nums">{formatJPY(r.total)}</td>
               </tr>
             ))}
           </tbody>

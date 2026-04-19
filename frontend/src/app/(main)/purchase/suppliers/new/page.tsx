@@ -13,6 +13,7 @@ export default function NewSupplierPage() {
   const [f, setF] = useState({
     supplierCode: '',
     name: '',
+    barcodeCode: '',
     phone: '',
     address: '',
     paymentTerms: '',
@@ -30,6 +31,7 @@ export default function NewSupplierPage() {
         body: JSON.stringify({
           supplierCode: f.supplierCode,
           name: f.name,
+          barcodeCode: f.barcodeCode.trim() || null,
           phone: f.phone || null,
           address: f.address || null,
           paymentTerms: f.paymentTerms || null,
@@ -64,6 +66,12 @@ export default function NewSupplierPage() {
             className="w-full rounded border px-3 py-2 text-sm"
             value={f.name}
             onChange={(e) => setF({ ...f, name: e.target.value })}
+          />
+          <input
+            placeholder="バーコード用コード"
+            className="w-full rounded border px-3 py-2 text-sm"
+            value={f.barcodeCode}
+            onChange={(e) => setF({ ...f, barcodeCode: e.target.value })}
           />
           <input
             placeholder="電話"

@@ -37,6 +37,7 @@ export default function NewProductPage() {
   const [suppliers, setSuppliers] = useState<{ id: string; name: string }[]>([]);
   const [productCode, setProductCode] = useState('');
   const [name, setName] = useState('');
+  const [barcodeCode, setBarcodeCode] = useState('');
   const [category, setCategory] = useState('');
   const [manufacturer, setManufacturer] = useState('');
   const [manufacturerPartNo, setManufacturerPartNo] = useState('');
@@ -65,6 +66,7 @@ export default function NewProductPage() {
         body: JSON.stringify({
           productCode: code,
           name: nm,
+          barcodeCode: barcodeCode.trim() || null,
           category: category.trim() || null,
           manufacturer: manufacturer.trim() || null,
           manufacturerPartNo: manufacturerPartNo.trim() || null,
@@ -111,6 +113,14 @@ export default function NewProductPage() {
                   className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none ring-navy-600 focus:ring-2"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
+                />
+              </Field>
+              <Field label="バーコード用コード" hint="バーコードスキャナ用。任意">
+                <input
+                  placeholder="例: 4901234567890"
+                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none ring-navy-600 focus:ring-2"
+                  value={barcodeCode}
+                  onChange={(e) => setBarcodeCode(e.target.value)}
                 />
               </Field>
               <Field label="カテゴリ" hint="任意（検索・整理用）">

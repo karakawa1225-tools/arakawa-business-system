@@ -18,9 +18,8 @@ export default function CustomerDetailPage() {
   const [f, setF] = useState({
     customerCode: '',
     companyName: '',
-    contactName: '',
+    barcodeCode: '',
     phone: '',
-    email: '',
     address: '',
     closingDay: '',
     paymentTerms: '',
@@ -32,9 +31,8 @@ export default function CustomerDetailPage() {
       setF({
         customerCode: String(row.customer_code ?? ''),
         companyName: String(row.company_name ?? ''),
-        contactName: String(row.contact_name ?? ''),
+        barcodeCode: String(row.barcode_code ?? ''),
         phone: String(row.phone ?? ''),
-        email: String(row.email ?? ''),
         address: String(row.address ?? ''),
         closingDay: row.closing_day != null ? String(row.closing_day) : '',
         paymentTerms: String(row.payment_terms ?? ''),
@@ -51,9 +49,8 @@ export default function CustomerDetailPage() {
           body: JSON.stringify({
             customerCode: f.customerCode,
             companyName: f.companyName,
-            contactName: f.contactName || null,
+            barcodeCode: f.barcodeCode.trim() || null,
             phone: f.phone || null,
-            email: f.email || null,
             address: f.address || null,
             closingDay: f.closingDay ? Number(f.closingDay) : null,
             paymentTerms: f.paymentTerms || null,
@@ -65,9 +62,8 @@ export default function CustomerDetailPage() {
         setF({
           customerCode: String(row.customer_code ?? ''),
           companyName: String(row.company_name ?? ''),
-          contactName: String(row.contact_name ?? ''),
+          barcodeCode: String(row.barcode_code ?? ''),
           phone: String(row.phone ?? ''),
-          email: String(row.email ?? ''),
           address: String(row.address ?? ''),
           closingDay: row.closing_day != null ? String(row.closing_day) : '',
           paymentTerms: String(row.payment_terms ?? ''),
@@ -103,13 +99,11 @@ export default function CustomerDetailPage() {
         {!edit ? (
           <div className="space-y-2 text-sm">
             <p>
-              <span className="text-gunmetal-500">担当者:</span> {String(c.contact_name ?? '—')}
+              <span className="text-gunmetal-500">バーコード用コード:</span>{' '}
+              {String(c.barcode_code ?? '—')}
             </p>
             <p>
               <span className="text-gunmetal-500">電話:</span> {String(c.phone ?? '—')}
-            </p>
-            <p>
-              <span className="text-gunmetal-500">メール:</span> {String(c.email ?? '—')}
             </p>
             <p>
               <span className="text-gunmetal-500">住所:</span> {String(c.address ?? '—')}
@@ -147,18 +141,14 @@ export default function CustomerDetailPage() {
             />
             <input
               className="w-full rounded border px-3 py-2 text-sm"
-              value={f.contactName}
-              onChange={(e) => setF({ ...f, contactName: e.target.value })}
+              placeholder="バーコード用コード"
+              value={f.barcodeCode}
+              onChange={(e) => setF({ ...f, barcodeCode: e.target.value })}
             />
             <input
               className="w-full rounded border px-3 py-2 text-sm"
               value={f.phone}
               onChange={(e) => setF({ ...f, phone: e.target.value })}
-            />
-            <input
-              className="w-full rounded border px-3 py-2 text-sm"
-              value={f.email}
-              onChange={(e) => setF({ ...f, email: e.target.value })}
             />
             <textarea
               className="w-full rounded border px-3 py-2 text-sm"

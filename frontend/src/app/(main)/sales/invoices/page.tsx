@@ -5,7 +5,7 @@ import { useEffect, useState } from 'react';
 import { PageTitle } from '@/components/ui/PageTitle';
 import { Card } from '@/components/ui/Card';
 import { api } from '@/lib/api';
-import { formatDateJa } from '@/lib/format';
+import { formatDateJa, formatJPY } from '@/lib/format';
 
 type Row = {
   id: string;
@@ -50,8 +50,8 @@ export default function InvoicesPage() {
                 <td className="px-4 py-3">{r.customer_name}</td>
                 <td className="px-4 py-3">{formatDateJa(r.issue_date)}</td>
                 <td className="px-4 py-3">{r.status}</td>
-                <td className="px-4 py-3 text-right">¥{r.total}</td>
-                <td className="px-4 py-3 text-right">¥{r.paid_amount}</td>
+                <td className="px-4 py-3 text-right tabular-nums">{formatJPY(r.total)}</td>
+                <td className="px-4 py-3 text-right tabular-nums">{formatJPY(r.paid_amount)}</td>
               </tr>
             ))}
           </tbody>

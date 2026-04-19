@@ -6,6 +6,7 @@ import { PageTitle } from '@/components/ui/PageTitle';
 import { Card } from '@/components/ui/Card';
 import { MasterCsvPanel } from '@/components/masters/MasterCsvPanel';
 import { api } from '@/lib/api';
+import { formatJPY } from '@/lib/format';
 import { downloadProductImportTemplateCsv, downloadProductMasterDescriptionCsv } from '@/lib/masterCsv';
 
 type Row = Record<string, unknown>;
@@ -49,6 +50,7 @@ export default function ProductsPage() {
             <tr>
               <th className="px-4 py-3 text-left">コード</th>
               <th className="px-4 py-3 text-left">商品名</th>
+              <th className="px-4 py-3 text-left">バーコード用コード</th>
               <th className="px-4 py-3 text-left">カテゴリ</th>
               <th className="px-4 py-3 text-right">仕入</th>
               <th className="px-4 py-3 text-right">販売</th>
@@ -59,9 +61,14 @@ export default function ProductsPage() {
               <tr key={String(r.id)} className="border-b border-slate-100">
                 <td className="px-4 py-3">{String(r.product_code)}</td>
                 <td className="px-4 py-3">{String(r.name)}</td>
+                <td className="px-4 py-3 text-gunmetal-600">{String(r.barcode_code ?? '—')}</td>
                 <td className="px-4 py-3">{String(r.category ?? '—')}</td>
-                <td className="px-4 py-3 text-right">¥{String(r.purchase_price ?? '—')}</td>
-                <td className="px-4 py-3 text-right">¥{String(r.sale_price ?? '—')}</td>
+                <td className="px-4 py-3 text-right tabular-nums">
+                  {r.purchase_price != null ? formatJPY(r.purchase_price) : '—'}
+                </td>
+                <td className="px-4 py-3 text-right tabular-nums">
+                  {r.sale_price != null ? formatJPY(r.sale_price) : '—'}
+                </td>
               </tr>
             ))}
           </tbody>

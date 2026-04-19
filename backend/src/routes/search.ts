@@ -51,14 +51,17 @@ searchRouter.get('/', async (req: AuthedRequest, res) => {
       query<{ id: string; title: string; sub: string | null }>(
         `SELECT id::text, company_name AS title, customer_code AS sub FROM customers
          WHERE company_id = $1 AND (
-           company_name ILIKE $2 OR customer_code ILIKE $2 OR COALESCE(contact_name,'') ILIKE $2
-           OR COALESCE(email,'') ILIKE $2 OR COALESCE(phone,'') ILIKE $2
+           company_name ILIKE $2 OR customer_code ILIKE $2 OR COALESCE(phone,'') ILIKE $2
+           OR COALESCE(barcode_code,'') ILIKE $2
          ) ORDER BY customer_code LIMIT ${PER}`,
         p
       ),
       query<{ id: string; title: string; sub: string | null }>(
         `SELECT id::text, name AS title, supplier_code AS sub FROM suppliers
-         WHERE company_id = $1 AND (name ILIKE $2 OR supplier_code ILIKE $2 OR COALESCE(phone,'') ILIKE $2)
+         WHERE company_id = $1 AND (
+           name ILIKE $2 OR supplier_code ILIKE $2 OR COALESCE(phone,'') ILIKE $2
+           OR COALESCE(barcode_code,'') ILIKE $2
+         )
          ORDER BY supplier_code LIMIT ${PER}`,
         p
       ),
@@ -67,6 +70,7 @@ searchRouter.get('/', async (req: AuthedRequest, res) => {
          WHERE company_id = $1 AND (
            name ILIKE $2 OR product_code ILIKE $2 OR COALESCE(category,'') ILIKE $2
            OR COALESCE(manufacturer,'') ILIKE $2 OR COALESCE(spec_text,'') ILIKE $2
+           OR COALESCE(barcode_code,'') ILIKE $2
          ) ORDER BY product_code LIMIT ${PER}`,
         p
       ),

@@ -11,6 +11,7 @@
     "dev:frontend": "npm run dev --workspace=frontend",
     "build": "npm run build --workspace=backend && npm run build --workspace=frontend",
     "db:init": "node database/run-schema.js",
+    "db:patch-barcode-fields": "node database/patch-barcode-fields.js",
     "db:patch-setup-cols": "node database/apply-patch-setup-columns.js",
     "db:patch-tax-divisions-and-expenses": "node database/patch-tax-divisions-and-expenses.js",
     "db:patch-arap-ledger": "node database/patch-arap-ledger.js",

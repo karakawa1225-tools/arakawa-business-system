@@ -6,6 +6,7 @@ import { useEffect, useState } from 'react';
 import { PageTitle } from '@/components/ui/PageTitle';
 import { Card } from '@/components/ui/Card';
 import { api } from '@/lib/api';
+import { formatJPY } from '@/lib/format';
 
 export default function OrderDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -24,7 +25,7 @@ export default function OrderDetailPage() {
       <PageTitle title={`受注 ${String(d.order_no)}`} description="受注詳細" />
       <Card className="max-w-3xl">
         <p className="text-sm text-gunmetal-600">状態: {String(d.status)}</p>
-        <p className="text-sm">合計: ¥{String(d.total)}</p>
+        <p className="text-sm tabular-nums">合計: {formatJPY(d.total)}</p>
         <table className="mt-4 w-full text-sm">
           <thead>
             <tr className="border-b text-left text-gunmetal-600">
@@ -39,8 +40,8 @@ export default function OrderDetailPage() {
               <tr key={String(l.id)} className="border-b border-slate-100">
                 <td className="py-2">{String(l.description)}</td>
                 <td className="py-2">{String(l.quantity)}</td>
-                <td className="py-2">{String(l.unit_price)}</td>
-                <td className="py-2">{String(l.amount)}</td>
+                <td className="py-2 text-right tabular-nums">{formatJPY(l.unit_price)}</td>
+                <td className="py-2 text-right tabular-nums">{formatJPY(l.amount)}</td>
               </tr>
             ))}
           </tbody>

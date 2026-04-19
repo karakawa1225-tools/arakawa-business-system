@@ -10,6 +10,12 @@ function optionalSmallInt(v: unknown): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
+function strOrNull(v: unknown): string | null {
+  if (v === undefined || v === null) return null;
+  const s = String(v).trim();
+  return s ? s : null;
+}
+
 export const customersRouter = Router();
 customersRouter.use(requireStaff);
 
@@ -48,15 +54,16 @@ customersRouter.post('/import-csv', blockViewerWrite, async (req: AuthedRequest,
     }
     try {
       const r = await query(
-        `INSERT INTO customers (company_id, customer_code, company_name, contact_name, phone, email, address, closing_day, payment_terms, notes)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING id`,
+        `INSERT INTO customers (company_id, customer_code, company_name, barcode_code, contact_name, phone, email, address, closing_day, payment_terms, notes)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING id`,
         [
           req.staff!.companyId,
           customerCode,
           companyName,
-          pickCell(row, 'contact_name', 'contactname', '担当者') || null,
+          pickCell(row, 'barcode_code', 'barcodecode', 'バーコード用コード', 'バーコード') || null,
+          null,
           pickCell(row, 'phone', '電話') || null,
-          pickCell(row, 'email', 'メール') || null,
+          null,
           pickCell(row, 'address', '住所') || null,
           optionalSmallInt(pickCell(row, 'closing_day', 'closingday', '締日') || undefined),
           pickCell(row, 'payment_terms', 'paymentterms', '支払サイト', '支払条件') || null,
@@ -93,15 +100,16 @@ customersRouter.post('/', blockViewerWrite, async (req: AuthedRequest, res) => {
   const b = req.body as Record<string, unknown>;
   try {
     const r = await query(
-      `INSERT INTO customers (company_id, customer_code, company_name, contact_name, phone, email, address, closing_day, payment_terms, notes)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING *`,
+      `INSERT INTO customers (company_id, customer_code, company_name, barcode_code, contact_name, phone, email, address, closing_day, payment_terms, notes)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING *`,
       [
         req.staff!.companyId,
         b.customerCode,
         b.companyName,
-        b.contactName ?? null,
+        strOrNull(b.barcodeCode),
+        null,
         b.phone ?? null,
-        b.email ?? null,
+        null,
         b.address ?? null,
         optionalSmallInt(b.closingDay),
         b.paymentTerms === '' ? null : (b.paymentTerms as string | null) ?? null,
@@ -122,14 +130,15 @@ customersRouter.post('/', blockViewerWrite, async (req: AuthedRequest, res) => {
 customersRouter.put('/:id', blockViewerWrite, async (req: AuthedRequest, res) => {
   const b = req.body as Record<string, unknown>;
   const r = await query(
-    `UPDATE customers SET customer_code=$1, company_name=$2, contact_name=$3, phone=$4, email=$5, address=$6, closing_day=$7, payment_terms=$8, notes=$9, updated_at=NOW()
-     WHERE id=$10 AND company_id=$11 RETURNING *`,
+    `UPDATE customers SET customer_code=$1, company_name=$2, barcode_code=$3, contact_name=$4, phone=$5, email=$6, address=$7, closing_day=$8, payment_terms=$9, notes=$10, updated_at=NOW()
+     WHERE id=$11 AND company_id=$12 RETURNING *`,
     [
       b.customerCode,
       b.companyName,
-      b.contactName ?? null,
+      strOrNull(b.barcodeCode),
+      null,
       b.phone ?? null,
-      b.email ?? null,
+      null,
       b.address ?? null,
       optionalSmallInt(b.closingDay),
       b.paymentTerms === '' ? null : (b.paymentTerms as string | null) ?? null,

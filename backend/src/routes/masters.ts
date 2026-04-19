@@ -222,7 +222,7 @@ mastersRouter.post('/accounts/import-yayoi-catalog', blockViewerWrite, async (re
 });
 
 mastersRouter.post('/accounts', blockViewerWrite, async (req: AuthedRequest, res) => {
-  const b = req.body as { code?: string; name: string; divisionId: string };
+  const b = req.body as { code?: string; name: string; divisionId: string; barcodeCode?: string | null };
   const code = typeof b.code === 'string' ? b.code.trim() : '';
   if (!/^\d{3}$/.test(code)) {
     res.status(400).json({ error: '勘定科目コードは半角数字3桁で入力してください（例: 101）' });
@@ -246,10 +246,11 @@ mastersRouter.post('/accounts', blockViewerWrite, async (req: AuthedRequest, res
     res.status(404).json({ error: '勘定科目区分が見つかりません' });
     return;
   }
+  const barcode = typeof b.barcodeCode === 'string' ? b.barcodeCode.trim() || null : null;
   const r = await query(
-    `INSERT INTO chart_of_accounts (company_id, division_id, code, name, account_type)
-     VALUES ($1,$2,$3,$4,$5::account_type) RETURNING *`,
-    [req.staff!.companyId, divisionId, code, name, div.rows[0].account_type]
+    `INSERT INTO chart_of_accounts (company_id, division_id, code, name, account_type, barcode_code)
+     VALUES ($1,$2,$3,$4,$5::account_type,$6) RETURNING *`,
+    [req.staff!.companyId, divisionId, code, name, div.rows[0].account_type, barcode]
   );
   const row = r.rows[0];
   const full = await query(
@@ -264,7 +265,7 @@ mastersRouter.post('/accounts', blockViewerWrite, async (req: AuthedRequest, res
 
 mastersRouter.patch('/accounts/:id', blockViewerWrite, async (req: AuthedRequest, res) => {
   const { id } = req.params;
-  const b = req.body as { code?: string | null; name?: string; divisionId?: string };
+  const b = req.body as { code?: string | null; name?: string; divisionId?: string; barcodeCode?: string | null };
   const code = typeof b.code === 'string' ? b.code.trim() : '';
   if (!/^\d{3}$/.test(code)) {
     res.status(400).json({ error: '勘定科目コードは半角数字3桁で入力してください（例: 101）' });
@@ -288,16 +289,19 @@ mastersRouter.patch('/accounts/:id', blockViewerWrite, async (req: AuthedRequest
     res.status(404).json({ error: '勘定科目区分が見つかりません' });
     return;
   }
+  const barcode =
+    typeof b.barcodeCode === 'string' ? b.barcodeCode.trim() || null : null;
   const r = await query(
     `UPDATE chart_of_accounts
      SET code = $1,
          name = $2,
          division_id = $3,
          account_type = $4::account_type,
+         barcode_code = $5,
          updated_at = NOW()
-     WHERE id = $5 AND company_id = $6
+     WHERE id = $6 AND company_id = $7
      RETURNING *`,
-    [code, name, divisionId, div.rows[0].account_type, id, req.staff!.companyId]
+    [code, name, divisionId, div.rows[0].account_type, barcode, id, req.staff!.companyId]
   );
   if (!r.rows[0]) {
     res.status(404).json({ error: '勘定科目が見つかりません' });

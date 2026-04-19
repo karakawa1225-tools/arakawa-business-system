@@ -14,6 +14,7 @@ import {
 import { PageTitle } from '@/components/ui/PageTitle';
 import { Card } from '@/components/ui/Card';
 import { api } from '@/lib/api';
+import { formatJPY } from '@/lib/format';
 
 type Stats = {
   todaySales: string;
@@ -23,12 +24,6 @@ type Stats = {
   monthlyInvoiceTotals: { m: string; total: string }[];
   monthlyPaymentTotals: { m: string; total: string }[];
 };
-
-function formatYen(n: string | number) {
-  const v = typeof n === 'string' ? parseFloat(n) : n;
-  if (Number.isNaN(v)) return '¥0';
-  return new Intl.NumberFormat('ja-JP', { style: 'currency', currency: 'JPY' }).format(v);
-}
 
 export default function DashboardPage() {
   const [stats, setStats] = useState<Stats | null>(null);
@@ -52,19 +47,19 @@ export default function DashboardPage() {
         <Card>
           <p className="text-xs font-medium uppercase tracking-wide text-gunmetal-500">今日の入金</p>
           <p className="mt-2 text-2xl font-semibold text-navy-950">
-            {stats ? formatYen(stats.todaySales) : '—'}
+            {stats ? formatJPY(stats.todaySales) : '—'}
           </p>
         </Card>
         <Card>
           <p className="text-xs font-medium uppercase tracking-wide text-gunmetal-500">今月の入金</p>
           <p className="mt-2 text-2xl font-semibold text-navy-950">
-            {stats ? formatYen(stats.monthSales) : '—'}
+            {stats ? formatJPY(stats.monthSales) : '—'}
           </p>
         </Card>
         <Card>
           <p className="text-xs font-medium uppercase tracking-wide text-gunmetal-500">未入金</p>
           <p className="mt-2 text-2xl font-semibold text-amber-700">
-            {stats ? formatYen(stats.unpaidAmount) : '—'}
+            {stats ? formatJPY(stats.unpaidAmount) : '—'}
           </p>
         </Card>
         <Card>
@@ -87,7 +82,7 @@ export default function DashboardPage() {
                   <XAxis dataKey="month" tick={{ fontSize: 11 }} stroke="#64748b" />
                   <YAxis tick={{ fontSize: 11 }} stroke="#64748b" />
                   <Tooltip
-                    formatter={(v: number) => formatYen(v)}
+                    formatter={(v: number) => formatJPY(v)}
                     contentStyle={{ borderRadius: 8, border: '1px solid #e2e8f0' }}
                   />
                   <Legend />

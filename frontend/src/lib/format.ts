@@ -10,6 +10,7 @@ export function toNumber(v: unknown): number | null {
   return null;
 }
 
+/** 会計表示（通貨記号 ￥ ＋ 3 桁区切り、円は小数なし） */
 export function formatJPY(v: unknown): string {
   const n = toNumber(v);
   if (n == null) return '—';

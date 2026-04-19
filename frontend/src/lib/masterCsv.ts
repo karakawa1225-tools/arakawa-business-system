@@ -15,9 +15,8 @@ export function downloadCustomerMasterDescriptionCsv() {
       '列名（取込CSVの1行目）,日本語名,必須,説明,記入例',
       'customer_code,顧客コード,必須,社内で重複しないコード（半角英数推奨）,C001',
       'company_name,会社名,必須,正式社名,株式会社サンプル',
-      'contact_name,担当者,任意,窓口担当者名,山田太郎',
+      'barcode_code,バーコード用コード,任意,バーコードスキャナ用の識別子,4901234567890',
       'phone,電話,任意,ハイフン可,03-1234-5678',
-      'email,メール,任意,,sample@example.com',
       'address,住所,任意,複数行はセル内改行可,東京都…',
       'closing_day,締日,任意,数値のみ（例: 25）,25',
       'payment_terms,支払サイト,任意,例: 月末締め翌月末払い,月末締め翌月末払い',
@@ -30,8 +29,8 @@ export function downloadCustomerImportTemplateCsv() {
   downloadCsv(
     'customer-import-template.csv',
     [
-      'customer_code,company_name,contact_name,phone,email,address,closing_day,payment_terms,notes',
-      'C001,株式会社サンプル,山田太郎,03-0000-0000,,東京都千代田区,25,月末締め翌月末払い,',
+      'customer_code,company_name,barcode_code,phone,address,closing_day,payment_terms,notes',
+      'C001,株式会社サンプル,4901234567890,03-0000-0000,東京都千代田区,25,月末締め翌月末払い,',
     ].join('\r\n')
   );
 }
@@ -43,6 +42,7 @@ export function downloadSupplierMasterDescriptionCsv() {
       '列名（取込CSVの1行目）,日本語名,必須,説明,記入例',
       'supplier_code,仕入先コード,必須,社内で重複しないコード,S001',
       'name,仕入先名,必須,正式名称,○○商事株式会社',
+      'barcode_code,バーコード用コード,任意,バーコードスキャナ用の識別子,4901234567890',
       'phone,電話,任意,,03-1111-2222',
       'address,住所,任意,,大阪府…',
       'payment_terms,支払条件,任意,,月末締め翌月10日払い',
@@ -57,7 +57,10 @@ export function downloadSupplierMasterDescriptionCsv() {
 export function downloadSupplierImportTemplateCsv() {
   downloadCsv(
     'supplier-import-template.csv',
-    ['supplier_code,name,phone,address,payment_terms,bank_name,bank_branch,bank_account_number,bank_account_holder', 'S001,○○商事,03-0000-0000,,月末締め,,,,'].join('\r\n')
+    [
+      'supplier_code,name,barcode_code,phone,address,payment_terms,bank_name,bank_branch,bank_account_number,bank_account_holder',
+      'S001,○○商事,4901234567890,03-0000-0000,,月末締め,,,,',
+    ].join('\r\n')
   );
 }
 
@@ -68,6 +71,7 @@ export function downloadProductMasterDescriptionCsv() {
       '列名（取込CSVの1行目）,日本語名,必須,説明,記入例',
       'product_code,商品コード,必須,社内で重複しないコード,PRD-001',
       'name,商品名,必須,,M10 ボルト',
+      'barcode_code,バーコード用コード,任意,バーコードスキャナ用の識別子,4901234567890',
       'category,カテゴリ,任意,検索・整理用,ねじ',
       'manufacturer,メーカー,任意,,○○工業',
       'manufacturer_part_no,メーカー品番,任意,,ABC-123',
@@ -86,8 +90,8 @@ export function downloadProductImportTemplateCsv() {
   downloadCsv(
     'product-import-template.csv',
     [
-      'product_code,name,category,manufacturer,manufacturer_part_no,trusco_order_code,supplier_code,purchase_price,sale_price,spec_text',
-      'PRD-001,サンプル商品,ねじ,,,,S001,100,150,メモ',
+      'product_code,name,barcode_code,category,manufacturer,manufacturer_part_no,trusco_order_code,supplier_code,purchase_price,sale_price,spec_text',
+      'PRD-001,サンプル商品,4901234567890,ねじ,,,,S001,100,150,メモ',
     ].join('\r\n')
   );
 }

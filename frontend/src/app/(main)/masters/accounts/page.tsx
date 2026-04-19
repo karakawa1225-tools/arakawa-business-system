@@ -26,10 +26,12 @@ export default function AccountsMasterPage() {
   const [rows, setRows] = useState<Record<string, unknown>[]>([]);
   const [name, setName] = useState('');
   const [code, setCode] = useState('');
+  const [barcodeCode, setBarcodeCode] = useState('');
   const [divisionId, setDivisionId] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
   const [editCode, setEditCode] = useState('');
+  const [editBarcodeCode, setEditBarcodeCode] = useState('');
   const [editDivisionId, setEditDivisionId] = useState('');
   const [importBusy, setImportBusy] = useState(false);
 
@@ -64,7 +66,7 @@ export default function AccountsMasterPage() {
       () =>
         api('/api/masters/accounts', {
           method: 'POST',
-          body: JSON.stringify({ name, code: c, divisionId }),
+          body: JSON.stringify({ name, code: c, divisionId, barcodeCode: barcodeCode.trim() || null }),
         }),
       async () => {
         await load();
@@ -73,12 +75,14 @@ export default function AccountsMasterPage() {
     if (!ok) return;
     setName('');
     setCode('');
+    setBarcodeCode('');
   }
 
   function startEdit(r: Record<string, unknown>) {
     setEditingId(String(r.id));
     setEditCode(onlyDigits3(String(r.code ?? '')));
     setEditName(String(r.name ?? ''));
+    setEditBarcodeCode(String(r.barcode_code ?? ''));
     setEditDivisionId(String(r.division_id ?? ''));
   }
 
@@ -86,6 +90,7 @@ export default function AccountsMasterPage() {
     setEditingId(null);
     setEditName('');
     setEditCode('');
+    setEditBarcodeCode('');
     setEditDivisionId('');
   }
 
@@ -105,6 +110,7 @@ export default function AccountsMasterPage() {
             code: c,
             name: editName,
             divisionId: editDivisionId,
+            barcodeCode: editBarcodeCode.trim() || null,
           }),
         }),
       async () => {
@@ -205,6 +211,15 @@ export default function AccountsMasterPage() {
             />
           </div>
           <div className="sm:col-span-2">
+            <label className="text-xs text-gunmetal-600">バーコード用コード（任意）</label>
+            <input
+              placeholder="バーコードスキャナ用の識別子"
+              value={barcodeCode}
+              onChange={(e) => setBarcodeCode(e.target.value)}
+              className="mt-1 w-full rounded border px-3 py-2 text-sm"
+            />
+          </div>
+          <div className="sm:col-span-2">
             <label className="text-xs text-gunmetal-600">勘定科目区分</label>
             <select
               value={divisionId}
@@ -234,6 +249,7 @@ export default function AccountsMasterPage() {
             <tr>
               <th className="px-4 py-3 text-left">コード</th>
               <th className="px-4 py-3 text-left">勘定科目名</th>
+              <th className="px-4 py-3 text-left">バーコード用コード</th>
               <th className="px-4 py-3 text-left">区分</th>
               <th className="px-4 py-3 text-left">財務区分</th>
               <th className="px-4 py-3 text-right">操作</th>
@@ -259,6 +275,14 @@ export default function AccountsMasterPage() {
                         value={editName}
                         onChange={(e) => setEditName(e.target.value)}
                         className="w-full min-w-[8rem] rounded border px-2 py-1 text-sm"
+                      />
+                    </td>
+                    <td className="px-4 py-3">
+                      <input
+                        value={editBarcodeCode}
+                        onChange={(e) => setEditBarcodeCode(e.target.value)}
+                        className="w-full min-w-[6rem] rounded border px-2 py-1 text-sm"
+                        placeholder="バーコード"
                       />
                     </td>
                     <td className="px-4 py-3">
@@ -292,6 +316,7 @@ export default function AccountsMasterPage() {
                   <>
                     <td className="px-4 py-3 font-mono">{String(r.code ?? '—')}</td>
                     <td className="px-4 py-3">{String(r.name)}</td>
+                    <td className="px-4 py-3 text-gunmetal-600">{String(r.barcode_code ?? '—')}</td>
                     <td className="px-4 py-3">
                       {String(r.division_code ?? '')} {String(r.division_name ?? '')}
                     </td>

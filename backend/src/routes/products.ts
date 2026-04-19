@@ -65,12 +65,13 @@ productsRouter.post('/import-csv', blockViewerWrite, async (req: AuthedRequest, 
     }
     try {
       const r = await query(
-        `INSERT INTO products (company_id, product_code, name, category, manufacturer, manufacturer_part_no, trusco_order_code, supplier_id, purchase_price, sale_price, photo_url, spec_text)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING id`,
+        `INSERT INTO products (company_id, product_code, name, barcode_code, category, manufacturer, manufacturer_part_no, trusco_order_code, supplier_id, purchase_price, sale_price, photo_url, spec_text)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13) RETURNING id`,
         [
           companyId,
           productCode,
           name,
+          pickCell(row, 'barcode_code', 'barcodecode', 'バーコード用コード', 'バーコード') || null,
           pickCell(row, 'category', 'カテゴリ') || null,
           pickCell(row, 'manufacturer', 'メーカー') || null,
           pickCell(row, 'manufacturer_part_no', 'manufacturerpartno', 'メーカー品番') || null,
@@ -114,12 +115,13 @@ productsRouter.post('/', blockViewerWrite, async (req: AuthedRequest, res) => {
   const b = req.body as Record<string, unknown>;
   try {
     const r = await query(
-      `INSERT INTO products (company_id, product_code, name, category, manufacturer, manufacturer_part_no, trusco_order_code, supplier_id, purchase_price, sale_price, photo_url, spec_text)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING *`,
+      `INSERT INTO products (company_id, product_code, name, barcode_code, category, manufacturer, manufacturer_part_no, trusco_order_code, supplier_id, purchase_price, sale_price, photo_url, spec_text)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13) RETURNING *`,
       [
         req.staff!.companyId,
         b.productCode,
         b.name,
+        typeof b.barcodeCode === 'string' ? b.barcodeCode.trim() || null : null,
         b.category ?? null,
         b.manufacturer ?? null,
         b.manufacturerPartNo ?? null,
@@ -145,11 +147,12 @@ productsRouter.post('/', blockViewerWrite, async (req: AuthedRequest, res) => {
 productsRouter.put('/:id', blockViewerWrite, async (req: AuthedRequest, res) => {
   const b = req.body as Record<string, unknown>;
   const r = await query(
-    `UPDATE products SET product_code=$1, name=$2, category=$3, manufacturer=$4, manufacturer_part_no=$5, trusco_order_code=$6, supplier_id=$7, purchase_price=$8, sale_price=$9, photo_url=$10, spec_text=$11, updated_at=NOW()
-     WHERE id=$12 AND company_id=$13 RETURNING *`,
+    `UPDATE products SET product_code=$1, name=$2, barcode_code=$3, category=$4, manufacturer=$5, manufacturer_part_no=$6, trusco_order_code=$7, supplier_id=$8, purchase_price=$9, sale_price=$10, photo_url=$11, spec_text=$12, updated_at=NOW()
+     WHERE id=$13 AND company_id=$14 RETURNING *`,
     [
       b.productCode,
       b.name,
+      typeof b.barcodeCode === 'string' ? b.barcodeCode.trim() || null : null,
       b.category ?? null,
       b.manufacturer ?? null,
       b.manufacturerPartNo ?? null,

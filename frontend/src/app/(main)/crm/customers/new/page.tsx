@@ -14,9 +14,8 @@ export default function NewCustomerPage() {
   const [f, setF] = useState({
     customerCode: '',
     companyName: '',
-    contactName: '',
+    barcodeCode: '',
     phone: '',
-    email: '',
     address: '',
     closingDay: '' as string,
     paymentTerms: '',
@@ -31,9 +30,8 @@ export default function NewCustomerPage() {
         body: JSON.stringify({
           customerCode: f.customerCode,
           companyName: f.companyName,
-          contactName: f.contactName || null,
+          barcodeCode: f.barcodeCode.trim() || null,
           phone: f.phone || null,
-          email: f.email || null,
           address: f.address || null,
           closingDay: f.closingDay ? Number(f.closingDay) : null,
           paymentTerms: f.paymentTerms || null,
@@ -54,9 +52,8 @@ export default function NewCustomerPage() {
           <div className="grid gap-4 sm:grid-cols-2">
             <Field label="顧客コード *" value={f.customerCode} onChange={(v) => setF({ ...f, customerCode: v })} />
             <Field label="会社名 *" value={f.companyName} onChange={(v) => setF({ ...f, companyName: v })} />
-            <Field label="担当者" value={f.contactName} onChange={(v) => setF({ ...f, contactName: v })} />
+            <Field label="バーコード用コード" value={f.barcodeCode} onChange={(v) => setF({ ...f, barcodeCode: v })} />
             <Field label="電話" value={f.phone} onChange={(v) => setF({ ...f, phone: v })} />
-            <Field label="メール" type="email" value={f.email} onChange={(v) => setF({ ...f, email: v })} />
             <Field label="締日" value={f.closingDay} onChange={(v) => setF({ ...f, closingDay: v })} />
           </div>
           <div>

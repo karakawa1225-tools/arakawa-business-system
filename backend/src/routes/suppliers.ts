@@ -41,12 +41,13 @@ suppliersRouter.post('/import-csv', blockViewerWrite, async (req: AuthedRequest,
     }
     try {
       const r = await query(
-        `INSERT INTO suppliers (company_id, supplier_code, name, phone, address, payment_terms, bank_name, bank_branch, bank_account_number, bank_account_holder)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING id`,
+        `INSERT INTO suppliers (company_id, supplier_code, name, barcode_code, phone, address, payment_terms, bank_name, bank_branch, bank_account_number, bank_account_holder)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING id`,
         [
           req.staff!.companyId,
           supplierCode,
           name,
+          pickCell(row, 'barcode_code', 'barcodecode', 'バーコード用コード', 'バーコード') || null,
           pickCell(row, 'phone', '電話') || null,
           pickCell(row, 'address', '住所') || null,
           pickCell(row, 'payment_terms', 'paymentterms', '支払条件') || null,
@@ -74,12 +75,13 @@ suppliersRouter.post('/', blockViewerWrite, async (req: AuthedRequest, res) => {
   const b = req.body as Record<string, unknown>;
   try {
     const r = await query(
-      `INSERT INTO suppliers (company_id, supplier_code, name, phone, address, payment_terms, bank_name, bank_branch, bank_account_number, bank_account_holder)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING *`,
+      `INSERT INTO suppliers (company_id, supplier_code, name, barcode_code, phone, address, payment_terms, bank_name, bank_branch, bank_account_number, bank_account_holder)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING *`,
       [
         req.staff!.companyId,
         b.supplierCode,
         b.name,
+        typeof b.barcodeCode === 'string' ? b.barcodeCode.trim() || null : null,
         b.phone ?? null,
         b.address ?? null,
         b.paymentTerms ?? null,
@@ -103,11 +105,12 @@ suppliersRouter.post('/', blockViewerWrite, async (req: AuthedRequest, res) => {
 suppliersRouter.put('/:id', blockViewerWrite, async (req: AuthedRequest, res) => {
   const b = req.body as Record<string, unknown>;
   const r = await query(
-    `UPDATE suppliers SET supplier_code=$1, name=$2, phone=$3, address=$4, payment_terms=$5, bank_name=$6, bank_branch=$7, bank_account_number=$8, bank_account_holder=$9, updated_at=NOW()
-     WHERE id=$10 AND company_id=$11 RETURNING *`,
+    `UPDATE suppliers SET supplier_code=$1, name=$2, barcode_code=$3, phone=$4, address=$5, payment_terms=$6, bank_name=$7, bank_branch=$8, bank_account_number=$9, bank_account_holder=$10, updated_at=NOW()
+     WHERE id=$11 AND company_id=$12 RETURNING *`,
     [
       b.supplierCode,
       b.name,
+      typeof b.barcodeCode === 'string' ? b.barcodeCode.trim() || null : null,
       b.phone ?? null,
       b.address ?? null,
       b.paymentTerms ?? null,

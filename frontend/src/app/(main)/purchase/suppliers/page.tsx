@@ -52,6 +52,7 @@ export default function SuppliersPage() {
             <tr>
               <th className="px-4 py-3 text-left">コード</th>
               <th className="px-4 py-3 text-left">仕入先名</th>
+              <th className="px-4 py-3 text-left">バーコード用コード</th>
               <th className="px-4 py-3 text-left">電話</th>
             </tr>
           </thead>
@@ -60,6 +61,7 @@ export default function SuppliersPage() {
               <tr key={String(r.id)} className="border-b border-slate-100">
                 <td className="px-4 py-3">{String(r.supplier_code)}</td>
                 <td className="px-4 py-3">{String(r.name)}</td>
+                <td className="px-4 py-3 text-gunmetal-600">{String(r.barcode_code ?? '—')}</td>
                 <td className="px-4 py-3">{String(r.phone ?? '—')}</td>
               </tr>
             ))}

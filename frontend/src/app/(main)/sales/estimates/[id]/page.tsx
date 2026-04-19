@@ -8,7 +8,7 @@ import { Card } from '@/components/ui/Card';
 import { api } from '@/lib/api';
 import { runSave } from '@/lib/save';
 import { DateInput } from '@/components/ui/DateInput';
-import { normalizeToYmd } from '@/lib/format';
+import { formatJPY, normalizeToYmd } from '@/lib/format';
 
 export default function EstimateEditPage() {
   const { id } = useParams<{ id: string }>();
@@ -185,8 +185,8 @@ export default function EstimateEditPage() {
               />
             </div>
           ))}
-          <p className="text-sm">
-            合計: ¥{String(data.total)}（税込内訳は保存後に再計算）
+          <p className="text-sm tabular-nums">
+            合計: {formatJPY(data.total)}（税込内訳は保存後に再計算）
           </p>
           <div className="flex gap-2">
             <Link href="/sales/estimates" className="rounded border px-4 py-2 text-sm">
