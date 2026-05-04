@@ -21,6 +21,10 @@ export default function ArLedgerPage() {
   const [month, setMonth] = useState(() => searchParams.get('month') || currentYearMonthLocal());
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [rows, setRows] = useState<Record<string, unknown>[]>([]);
+  /** 登録成功後も一覧 GET が失敗すると「保存されていない」ように見えるため、取得失敗を明示する */
+  const [ledgerLoad, setLedgerLoad] = useState<'loading' | 'ok' | 'error'>('loading');
+  const [ledgerError, setLedgerError] = useState('');
+  const [showRegisteredBanner, setShowRegisteredBanner] = useState(false);
   const [pdfBusy, setPdfBusy] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [eTaxRateKey, setETaxRateKey] = useState<LedgerTaxRateKey>('10');
@@ -39,6 +43,15 @@ export default function ArLedgerPage() {
     }
   }, [searchParams]);
 
+  /** 新規登録直後の URL ?saved=1 を消しつつ、案内は一度表示し続ける */
+  useEffect(() => {
+    if (searchParams.get('saved') !== '1') return;
+    setShowRegisteredBanner(true);
+    const m = searchParams.get('month');
+    const mo = m && /^\d{4}-\d{2}$/.test(m) ? m : month;
+    router.replace(`/accounting/ar?month=${encodeURIComponent(mo)}`);
+  }, [searchParams, router, month]);
+
   useEffect(() => {
     setERow((p) => {
       const r = ratePercentFromKey(eTaxRateKey);
@@ -48,14 +61,28 @@ export default function ArLedgerPage() {
   }, [eRow.salesAmount, eTaxRateKey]);
 
   async function load() {
-    const data = await api<Record<string, unknown>[]>(`/api/ar-ledger?month=${month}`);
-    setRows(data);
+    setLedgerLoad('loading');
+    setLedgerError('');
+    try {
+      const data = await api<Record<string, unknown>[]>(
+        `/api/ar-ledger?month=${encodeURIComponent(month)}`
+      );
+      setRows(Array.isArray(data) ? data : []);
+      setLedgerLoad('ok');
+    } catch (e) {
+      console.error('[ArLedgerPage] /api/ar-ledger', e);
+      setLedgerLoad('error');
+      setLedgerError(e instanceof Error ? e.message : String(e));
+      setRows([]);
+    }
   }
 
   useEffect(() => {
-    api<Customer[]>('/api/customers').then((c) => {
-      setCustomers(c);
-    });
+    api<Customer[]>('/api/customers')
+      .then((c) => {
+        if (Array.isArray(c)) setCustomers(c);
+      })
+      .catch((e) => console.error('[ArLedgerPage] /api/customers', e));
   }, []);
 
   useEffect(() => {
@@ -122,6 +149,30 @@ export default function ArLedgerPage() {
     <>
       <PageTitle title="売掛金管理" description="一覧で月を選び、行から編集します。新規は入力画面で登録します。" />
 
+      {showRegisteredBanner ? (
+        <div className="mb-4 rounded border border-emerald-200 bg-emerald-50/90 px-4 py-3 text-sm text-emerald-950">
+          <strong>登録はサーバーに送信済みです。</strong>
+          下の一覧が空のときは、一覧の取得に失敗している可能性があります（赤いエラー枠・「一覧を再試行」）。通信とログインを確認してください。
+        </div>
+      ) : null}
+
+      {ledgerLoad === 'error' ? (
+        <div className="mb-4 rounded border border-red-200 bg-red-50/90 px-4 py-3 text-sm text-red-950" role="alert">
+          <p className="font-medium">
+            売掛一覧を取得できませんでした。登録処理が成功していてもここに表示されないことがあります（通信・認証・API
+            URL）。
+          </p>
+          <p className="mt-2 whitespace-pre-wrap break-words text-xs">{ledgerError}</p>
+          <button
+            type="button"
+            onClick={() => void load()}
+            className="mt-3 rounded border border-red-300 bg-white px-3 py-1.5 text-xs font-medium text-red-900 hover:bg-red-50"
+          >
+            一覧を再試行
+          </button>
+        </div>
+      ) : null}
+
       <div className="mb-4 flex flex-wrap items-end gap-4">
         <div>
           <label className="text-xs text-gunmetal-600">対象月</label>
@@ -161,7 +212,21 @@ export default function ArLedgerPage() {
             </tr>
           </thead>
           <tbody>
-            {rows.length === 0 && (
+            {ledgerLoad === 'loading' && rows.length === 0 ? (
+              <tr>
+                <td colSpan={6} className="px-4 py-6 text-center text-gunmetal-600">
+                  読み込み中…
+                </td>
+              </tr>
+            ) : null}
+            {ledgerLoad === 'error' ? (
+              <tr>
+                <td colSpan={6} className="px-4 py-6 text-center text-red-800">
+                  上の赤枠の説明に従って接続を確認してください。
+                </td>
+              </tr>
+            ) : null}
+            {ledgerLoad === 'ok' && rows.length === 0 ? (
               <tr>
                 <td colSpan={6} className="px-4 py-6 text-center text-gunmetal-600">
                   この月の売掛金がありません。
@@ -171,7 +236,7 @@ export default function ArLedgerPage() {
                   から登録できます。
                 </td>
               </tr>
-            )}
+            ) : null}
             {rows.map((r) => {
               const id = String(r.id);
               if (editingId === id) {

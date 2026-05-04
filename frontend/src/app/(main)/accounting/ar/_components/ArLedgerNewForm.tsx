@@ -148,7 +148,9 @@ export function ArLedgerNewForm({
           }),
         }),
       async () => {
-        router.push(`/accounting/ar?month=${encodeURIComponent(listMonth)}`);
+        router.push(
+          `/accounting/ar?month=${encodeURIComponent(listMonth)}&saved=1`
+        );
         router.refresh();
       }
     );
