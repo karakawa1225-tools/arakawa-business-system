@@ -43,17 +43,14 @@ suppliersRouter.post('/import-csv', blockViewerWrite, async (req: AuthedRequest,
     }
     try {
       const r = await query<{ was_insert: boolean }>(
-        `INSERT INTO suppliers (company_id, supplier_code, name, barcode_code, phone, postal_code, address, payment_terms, bank_name, bank_branch, bank_account_number, bank_account_holder)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
+        `INSERT INTO suppliers (company_id, supplier_code, name, barcode_code, phone, postal_code, address, payment_terms, bank_name, bank_branch, bank_account_type, bank_account_number, bank_account_holder)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
          ON CONFLICT (company_id, supplier_code) DO UPDATE SET
            name = EXCLUDED.name,
            barcode_code = EXCLUDED.barcode_code,
-           phone = EXCLUDED.phone,
-           postal_code = EXCLUDED.postal_code,
-           address = EXCLUDED.address,
-           payment_terms = EXCLUDED.payment_terms,
            bank_name = EXCLUDED.bank_name,
            bank_branch = EXCLUDED.bank_branch,
+           bank_account_type = EXCLUDED.bank_account_type,
            bank_account_number = EXCLUDED.bank_account_number,
            bank_account_holder = EXCLUDED.bank_account_holder,
            updated_at = NOW()
@@ -63,12 +60,13 @@ suppliersRouter.post('/import-csv', blockViewerWrite, async (req: AuthedRequest,
           supplierCode,
           name,
           pickCell(row, 'barcode_code', 'barcodecode', 'バーコード用コード', 'バーコード') || null,
-          pickCell(row, 'phone', '電話') || null,
-          pickCell(row, 'postal_code', 'postalcode', '郵便番号', 'zip') || null,
-          pickCell(row, 'address', '住所') || null,
-          pickCell(row, 'payment_terms', 'paymentterms', '支払条件') || null,
+          null,
+          null,
+          null,
+          null,
           pickCell(row, 'bank_name', 'bankname', '銀行名') || null,
           pickCell(row, 'bank_branch', 'bankbranch', '支店名') || null,
+          pickCell(row, 'bank_account_type', 'bankaccounttype', '口座種別', '種別') || null,
           pickCell(row, 'bank_account_number', 'bankaccountnumber', '口座番号') || null,
           pickCell(row, 'bank_account_holder', 'bankaccountholder', '口座名義') || null,
         ]
@@ -88,8 +86,8 @@ suppliersRouter.post('/', blockViewerWrite, async (req: AuthedRequest, res) => {
   const b = req.body as Record<string, unknown>;
   try {
     const r = await query(
-      `INSERT INTO suppliers (company_id, supplier_code, name, barcode_code, phone, postal_code, address, payment_terms, bank_name, bank_branch, bank_account_number, bank_account_holder)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING *`,
+      `INSERT INTO suppliers (company_id, supplier_code, name, barcode_code, phone, postal_code, address, payment_terms, bank_name, bank_branch, bank_account_type, bank_account_number, bank_account_holder)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13) RETURNING *`,
       [
         req.staff!.companyId,
         b.supplierCode,
@@ -101,6 +99,7 @@ suppliersRouter.post('/', blockViewerWrite, async (req: AuthedRequest, res) => {
         b.paymentTerms ?? null,
         b.bankName ?? null,
         b.bankBranch ?? null,
+        typeof b.bankAccountType === 'string' ? b.bankAccountType.trim() || null : null,
         b.bankAccountNumber ?? null,
         b.bankAccountHolder ?? null,
       ]
@@ -119,8 +118,8 @@ suppliersRouter.post('/', blockViewerWrite, async (req: AuthedRequest, res) => {
 suppliersRouter.put('/:id', blockViewerWrite, async (req: AuthedRequest, res) => {
   const b = req.body as Record<string, unknown>;
   const r = await query(
-    `UPDATE suppliers SET supplier_code=$1, name=$2, barcode_code=$3, phone=$4, postal_code=$5, address=$6, payment_terms=$7, bank_name=$8, bank_branch=$9, bank_account_number=$10, bank_account_holder=$11, updated_at=NOW()
-     WHERE id=$12 AND company_id=$13 RETURNING *`,
+    `UPDATE suppliers SET supplier_code=$1, name=$2, barcode_code=$3, phone=$4, postal_code=$5, address=$6, payment_terms=$7, bank_name=$8, bank_branch=$9, bank_account_type=$10, bank_account_number=$11, bank_account_holder=$12, updated_at=NOW()
+     WHERE id=$13 AND company_id=$14 RETURNING *`,
     [
       b.supplierCode,
       b.name,
@@ -131,6 +130,7 @@ suppliersRouter.put('/:id', blockViewerWrite, async (req: AuthedRequest, res) =>
       b.paymentTerms ?? null,
       b.bankName ?? null,
       b.bankBranch ?? null,
+      typeof b.bankAccountType === 'string' ? b.bankAccountType.trim() || null : null,
       b.bankAccountNumber ?? null,
       b.bankAccountHolder ?? null,
       req.params.id,

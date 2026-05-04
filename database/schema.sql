@@ -196,6 +196,7 @@ CREATE TABLE suppliers (
   payment_terms TEXT,
   bank_name VARCHAR(255),
   bank_branch VARCHAR(255),
+  bank_account_type VARCHAR(50),
   bank_account_number VARCHAR(50),
   bank_account_holder VARCHAR(255),
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),

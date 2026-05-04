@@ -20,6 +20,7 @@ export default function NewSupplierPage() {
     paymentTerms: '',
     bankName: '',
     bankBranch: '',
+    bankAccountType: '',
     bankAccountNumber: '',
     bankAccountHolder: '',
   });
@@ -39,6 +40,7 @@ export default function NewSupplierPage() {
           paymentTerms: f.paymentTerms || null,
           bankName: f.bankName || null,
           bankBranch: f.bankBranch || null,
+          bankAccountType: f.bankAccountType.trim() || null,
           bankAccountNumber: f.bankAccountNumber || null,
           bankAccountHolder: f.bankAccountHolder || null,
         }),
@@ -112,6 +114,12 @@ export default function NewSupplierPage() {
             className="w-full rounded border px-3 py-2 text-sm"
             value={f.bankBranch}
             onChange={(e) => setF({ ...f, bankBranch: e.target.value })}
+          />
+          <input
+            placeholder="口座種別（普通・当座など）"
+            className="w-full rounded border px-3 py-2 text-sm"
+            value={f.bankAccountType}
+            onChange={(e) => setF({ ...f, bankAccountType: e.target.value })}
           />
           <input
             placeholder="口座番号"

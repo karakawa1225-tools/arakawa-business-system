@@ -46,12 +46,9 @@ export function downloadSupplierMasterDescriptionCsv() {
       'supplier_code,仕入先コード,必須,社内で重複しないコード,S001',
       'name,仕入先名,必須,正式名称,○○商事株式会社',
       'barcode_code,バーコード用コード,任意,バーコードスキャナ用の識別子,4901234567890',
-      'phone,電話,任意,,03-1111-2222',
-      'postal_code,郵便番号,任意,,5300001',
-      'address,住所,任意,,大阪府…',
-      'payment_terms,支払条件,任意,,月末締め翌月10日払い',
       'bank_name,銀行名,任意,振込先,みずほ銀行',
       'bank_branch,支店名,任意,,本店',
+      'bank_account_type,口座種別,任意,普通・当座など,普通',
       'bank_account_number,口座番号,任意,半角数字,1234567',
       'bank_account_holder,口座名義,任意,カナ可,カ）サンプル',
       '（運用）,同一仕入先コード,,CSV内で重複がある場合は下の行が優先されます。既存の仕入先コードは上書きされます。,',
@@ -63,8 +60,8 @@ export function downloadSupplierImportTemplateCsv() {
   downloadCsv(
     'supplier-import-template.csv',
     [
-      'supplier_code,name,barcode_code,phone,postal_code,address,payment_terms,bank_name,bank_branch,bank_account_number,bank_account_holder',
-      'S001,○○商事,4901234567890,03-0000-0000,5300001,,月末締め,,,,',
+      'supplier_code,name,barcode_code,bank_name,bank_branch,bank_account_type,bank_account_number,bank_account_holder',
+      'S001,○○商事,4901234567890,みずほ銀行,本店,普通,1234567,カ）サンプル',
     ].join('\r\n')
   );
 }
