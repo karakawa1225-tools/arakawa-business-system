@@ -50,8 +50,9 @@ npm run dev:3001
 
    | Name | 例 |
    |------|-----|
-   | `BACKEND_PROXY_TARGET` | `https://your-api.example.com`（末尾 `/api` なし） |
-   | `NEXT_PUBLIC_API_URL` | 上記と同じ API のオリジン（HTTPS） |
+   | `BACKEND_PROXY_TARGET` | `https://your-api.example.com`（末尾 `/api` なし）。**必須推奨**（`/api` プロキシの転送先） |
+   | `NEXT_PUBLIC_API_URL` | 上記と同じオリジンで可（プロキシ先のフォールバック）。ブラウザの既定は同一オリジンの `/api` のみ |
+   | `NEXT_PUBLIC_API_DIRECT` | 任意。`1` / `true` のときだけブラウザが `NEXT_PUBLIC_API_URL` へ直接フェッチ（CORS が必要） |
 
 5. デプロイ後、ログインやマスタ取得が通るか確認
 

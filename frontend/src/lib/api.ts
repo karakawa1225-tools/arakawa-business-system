@@ -1,10 +1,12 @@
 /**
- * ブラウザ（ローカル）: 相対パス `/api/...` のみ（フロントと同一オリジン）。
+ * ブラウザ: 既定は相対パス `/api/...`（フロントと同一オリジン）。
  * ページが localhost で API が 127.0.0.1 だと別オリジンになり、環境によって POST/PATCH/DELETE だけ失敗することがある。
  * `app/api/[[...path]]/route.ts` が全メソッドをバックエンドへ転送する。
  *
- * ブラウザ（本番ホスト）: `NEXT_PUBLIC_API_URL` があればバックエンドへ直接フェッチする。
- * 直アクセスが Failed to fetch（CORS・Render コールドスタート等）のときは、同一オリジンの `/api/...` に一度だけフォールバックする（Vercel の Route Handler が Render へ転送）。
+ * ブラウザ（本番ホスト）: 既定は同一オリジンのみ（Vercel → Render はサーバー側 fetch で CORS にならない）。
+ * `NEXT_PUBLIC_API_URL` だけ設定してブラウザから Render へ直叩きすると、CORS / Failed to fetch で一覧取得が落ちやすい。
+ * 意図的にブラウザ直結する場合のみ `NEXT_PUBLIC_API_DIRECT=1` と併用する。
+ * 直アクセスがネットワーク失敗のときは、同一オリジン `/api/...` へ一度だけフォールバックする（DIRECT=1 時）。
  *
  * サーバー側: BACKEND_PROXY_TARGET → NEXT_PUBLIC_API_URL → http://127.0.0.1:4000
  */
@@ -71,7 +73,10 @@ export const apiBaseUrl = (): string => {
   if (typeof window !== 'undefined') {
     const pub =
       typeof process.env.NEXT_PUBLIC_API_URL === 'string' && process.env.NEXT_PUBLIC_API_URL.trim();
-    if (pub && !isBrowserLocalHost()) {
+    const direct =
+      typeof process.env.NEXT_PUBLIC_API_DIRECT === 'string' &&
+      /^(1|true|yes)$/i.test(process.env.NEXT_PUBLIC_API_DIRECT.trim());
+    if (!isBrowserLocalHost() && pub && direct) {
       return normalizeBrowserPublicApiOrigin(pub);
     }
     return '';
