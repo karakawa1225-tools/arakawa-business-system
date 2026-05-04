@@ -33,12 +33,18 @@ export function ApLedgerNewForm({ listMonth }: { listMonth: string }) {
   });
 
   const filteredSuppliers = useMemo(() => {
-    const q = norm(nameQuery);
-    if (!q) return suppliers;
+    const raw = nameQuery.trim();
+    if (!raw) return suppliers;
+    const q = norm(raw);
     return suppliers.filter(
       (s) => norm(s.name).includes(q) || norm(s.supplier_code).includes(q)
     );
   }, [suppliers, nameQuery]);
+
+  const selectSuppliers = useMemo(() => {
+    if (suppliers.length === 0) return [];
+    return filteredSuppliers.length > 0 ? filteredSuppliers : suppliers;
+  }, [suppliers, filteredSuppliers]);
 
   useEffect(() => {
     setF((p) => {
@@ -49,23 +55,26 @@ export function ApLedgerNewForm({ listMonth }: { listMonth: string }) {
   }, [f.amount, f.taxRateKey]);
 
   useEffect(() => {
-    api<Supplier[]>('/api/suppliers').then((s) => {
-      setSuppliers(s);
-      if (s[0]) {
-        setF((p) => ({ ...p, supplierId: s[0].id }));
-        setNameQuery(s[0].name);
-      }
-    });
+    api<Supplier[]>('/api/suppliers')
+      .then((s) => {
+        setSuppliers(Array.isArray(s) ? s : []);
+        if (Array.isArray(s) && s[0]) {
+          setF((p) => ({ ...p, supplierId: s[0].id }));
+        }
+      })
+      .catch((e) => {
+        console.error('[ApLedgerNewForm] /api/suppliers', e);
+      });
   }, []);
 
-  /** 絞り込み後に、選択中IDが一覧外なら先頭へ */
+  /** ドロップダウン表示集合に選択中IDが無ければ先頭へ */
   useEffect(() => {
-    if (filteredSuppliers.length === 0) return;
-    if (!filteredSuppliers.some((s) => s.id === f.supplierId)) {
-      const first = filteredSuppliers[0];
+    if (selectSuppliers.length === 0) return;
+    if (!selectSuppliers.some((s) => s.id === f.supplierId)) {
+      const first = selectSuppliers[0];
       setF((p) => ({ ...p, supplierId: first.id }));
     }
-  }, [filteredSuppliers, f.supplierId]);
+  }, [selectSuppliers, f.supplierId]);
 
   /** 仕入先名の絞り込みで仕入先マスタをルックアップ（1件に絞れたら自動選択） */
   useEffect(() => {
@@ -75,18 +84,20 @@ export function ApLedgerNewForm({ listMonth }: { listMonth: string }) {
     const s = list[0];
     if (f.supplierId !== s.id) {
       setF((p) => ({ ...p, supplierId: s.id }));
-      setNameQuery(s.name);
     }
   }, [suppliers, filteredSuppliers, f.supplierId]);
 
   function onPickSupplier(id: string) {
-    const s = suppliers.find((x) => x.id === id);
     setF((p) => ({ ...p, supplierId: id }));
-    if (s) setNameQuery(s.name);
+    setNameQuery('');
   }
 
   async function add(e: React.FormEvent) {
     e.preventDefault();
+    if (!f.supplierId) {
+      window.alert('仕入先を選択してください');
+      return;
+    }
     await runSave(
       () =>
         api('/api/ap-ledger', {
@@ -142,16 +153,21 @@ export function ApLedgerNewForm({ listMonth }: { listMonth: string }) {
             onChange={(e) => onPickSupplier(e.target.value)}
             className="mt-1 w-full rounded border border-slate-300 px-3 py-2 text-sm"
           >
-            {filteredSuppliers.length === 0 ? (
-              <option value="">該当する仕入先がありません</option>
+            {suppliers.length === 0 ? (
+              <option value="">仕入先マスタに登録がありません（先に仕入先登録してください）</option>
             ) : (
-              filteredSuppliers.map((s) => (
+              selectSuppliers.map((s) => (
                 <option key={s.id} value={s.id}>
                   {s.supplier_code} {s.name}
                 </option>
               ))
             )}
           </select>
+          {suppliers.length > 0 && nameQuery.trim() && filteredSuppliers.length === 0 ? (
+            <p className="mt-1 text-[10px] text-amber-700">
+              絞り込みに一致する仕入先がありません。下の一覧は全件表示しています。
+            </p>
+          ) : null}
           <p className="mt-1 text-[10px] text-gunmetal-500">
             絞り込み結果が1件のとき、自動で選びます（締め日は仕入先マスタにないため、手入力です）。
           </p>

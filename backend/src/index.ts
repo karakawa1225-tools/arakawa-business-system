@@ -136,8 +136,19 @@ app.use((err: unknown, _req: express.Request, res: express.Response, _next: expr
 });
 
 const port = Number(process.env.PORT) || 4000;
-app.listen(port, async () => {
-  console.log(`ARAKAWA API listening on http://localhost:${port}`);
+const host = process.env.LISTEN_HOST || '0.0.0.0';
+
+console.log('[arakawa-backend] boot', {
+  node: process.version,
+  cwd: process.cwd(),
+  host,
+  port,
+  hasDatabaseUrl: Boolean(process.env.DATABASE_URL),
+  hasJwtSecret: Boolean(process.env.JWT_SECRET),
+});
+
+const server = app.listen(port, host, async () => {
+  console.log(`ARAKAWA API listening on http://${host}:${port}`);
   console.log('  → /api/ar-ledger /api/ap-ledger などをマウント済み（ここが出ないプロセスは別アプリの可能性）');
   try {
     await pool.query('SELECT 1');
@@ -148,4 +159,9 @@ app.listen(port, async () => {
     const poolerHint = hintForDatabaseConnectError(detail);
     if (poolerHint) console.error('DB接続: ヒント —', poolerHint);
   }
+});
+
+server.on('error', (err) => {
+  console.error('[arakawa-backend] listen 失敗:', err);
+  process.exit(1);
 });

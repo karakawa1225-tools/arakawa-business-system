@@ -24,7 +24,14 @@ export default function CustomersPage() {
   const [rows, setRows] = useState<Customer[]>([]);
 
   const load = useCallback(() => {
-    api<Customer[]>('/api/customers').then(setRows).catch(() => setRows([]));
+    api<Customer[]>('/api/customers')
+      .then((data) => {
+        if (Array.isArray(data)) setRows(data);
+        else console.warn('[CustomersPage] /api/customers: unexpected shape', data);
+      })
+      .catch((e) => {
+        console.error('[CustomersPage] /api/customers', e);
+      });
   }, []);
 
   useEffect(() => {

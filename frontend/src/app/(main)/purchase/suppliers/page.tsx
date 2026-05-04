@@ -16,7 +16,14 @@ type Row = Record<string, unknown>;
 export default function SuppliersPage() {
   const [rows, setRows] = useState<Row[]>([]);
   const load = useCallback(() => {
-    api<Row[]>('/api/suppliers').then(setRows).catch(() => setRows([]));
+    api<Row[]>('/api/suppliers')
+      .then((data) => {
+        if (Array.isArray(data)) setRows(data);
+        else console.warn('[SuppliersPage] /api/suppliers: unexpected shape', data);
+      })
+      .catch((e) => {
+        console.error('[SuppliersPage] /api/suppliers', e);
+      });
   }, []);
   useEffect(() => {
     load();

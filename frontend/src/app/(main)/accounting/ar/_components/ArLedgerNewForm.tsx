@@ -19,6 +19,8 @@ export function ArLedgerNewForm({ listMonth }: { listMonth: string }) {
   const router = useRouter();
   const pdfRef = useRef<HTMLInputElement | null>(null);
   const [customers, setCustomers] = useState<Customer[]>([]);
+  /** API 失敗と「マスタ0件」を区別する（失敗時は空配列のままになりがち） */
+  const [customersLoad, setCustomersLoad] = useState<'loading' | 'ok' | 'error'>('loading');
   const [pdfName, setPdfName] = useState('');
   const [nameQuery, setNameQuery] = useState('');
 
@@ -33,14 +35,21 @@ export function ArLedgerNewForm({ listMonth }: { listMonth: string }) {
   });
 
   const filteredCustomers = useMemo(() => {
-    const q = norm(nameQuery);
-    if (!q) return customers;
+    const raw = nameQuery.trim();
+    if (!raw) return customers;
+    const q = norm(raw);
     return customers.filter(
       (c) =>
         norm(c.company_name).includes(q) ||
         norm(c.customer_code).includes(q)
     );
   }, [customers, nameQuery]);
+
+  /** 絞り込み0件でもドロップダウンは全件表示（入力ミスで一覧が消えないようにする） */
+  const selectCustomers = useMemo(() => {
+    if (customers.length === 0) return [];
+    return filteredCustomers.length > 0 ? filteredCustomers : customers;
+  }, [customers, filteredCustomers]);
 
   useEffect(() => {
     setF((p) => {
@@ -51,27 +60,35 @@ export function ArLedgerNewForm({ listMonth }: { listMonth: string }) {
   }, [f.salesAmount, f.taxRateKey]);
 
   useEffect(() => {
-    api<Customer[]>('/api/customers').then((c) => {
-      setCustomers(c);
-      if (c[0]) {
-        setF((p) => ({
-          ...p,
-          customerId: c[0].id,
-          closingDay: String(c[0].closing_day ?? ''),
-        }));
-        setNameQuery(c[0].company_name);
-      }
-    });
+    setCustomersLoad('loading');
+    api<Customer[]>('/api/customers')
+      .then((c) => {
+        const list = Array.isArray(c) ? c : [];
+        setCustomers(list);
+        setCustomersLoad('ok');
+        if (list[0]) {
+          setF((p) => ({
+            ...p,
+            customerId: list[0].id,
+            closingDay: String(list[0].closing_day ?? ''),
+          }));
+        }
+      })
+      .catch((e) => {
+        console.error('[ArLedgerNewForm] /api/customers', e);
+        setCustomers([]);
+        setCustomersLoad('error');
+      });
   }, []);
 
-  /** 絞り込み後に、選択中IDが一覧外なら先頭へ */
+  /** ドロップダウン表示集合に選択中IDが無ければ先頭へ */
   useEffect(() => {
-    if (filteredCustomers.length === 0) return;
-    if (!filteredCustomers.some((c) => c.id === f.customerId)) {
-      const first = filteredCustomers[0];
+    if (selectCustomers.length === 0) return;
+    if (!selectCustomers.some((c) => c.id === f.customerId)) {
+      const first = selectCustomers[0];
       setF((p) => ({ ...p, customerId: first.id, closingDay: String(first.closing_day ?? '') }));
     }
-  }, [filteredCustomers, f.customerId]);
+  }, [selectCustomers, f.customerId]);
 
   /** 顧客名（絞り込み）＋締め日から顧客マスタをルックアップ */
   useEffect(() => {
@@ -90,7 +107,6 @@ export function ArLedgerNewForm({ listMonth }: { listMonth: string }) {
       const c = byDay[0];
       if (f.customerId !== c.id) {
         setF((p) => ({ ...p, customerId: c.id }));
-        setNameQuery(c.company_name);
       }
       return;
     }
@@ -99,7 +115,6 @@ export function ArLedgerNewForm({ listMonth }: { listMonth: string }) {
       const c = list[0];
       if (f.customerId !== c.id) {
         setF((p) => ({ ...p, customerId: c.id, closingDay: String(c.closing_day ?? '') }));
-        setNameQuery(c.company_name);
       }
     }
   }, [customers, filteredCustomers, f.closingDay, f.customerId]);
@@ -111,11 +126,19 @@ export function ArLedgerNewForm({ listMonth }: { listMonth: string }) {
       customerId: id,
       closingDay: c ? String(c.closing_day ?? '') : p.closingDay,
     }));
-    if (c) setNameQuery(c.company_name);
+    setNameQuery('');
   }
 
   async function add(e: React.FormEvent) {
     e.preventDefault();
+    if (customersLoad !== 'ok') {
+      window.alert('顧客マスタの読み込みが完了していません。再読み込みしてください。');
+      return;
+    }
+    if (!f.customerId) {
+      window.alert('顧客を選択してください');
+      return;
+    }
     await runSave(
       () =>
         api('/api/ar-ledger', {
@@ -166,15 +189,28 @@ export function ArLedgerNewForm({ listMonth }: { listMonth: string }) {
           </datalist>
           <label className="mt-2 block text-[11px] font-medium text-gunmetal-600">顧客を選択</label>
           <select
-            required
-            value={f.customerId}
+            required={customersLoad === 'ok' && customers.length > 0}
+            disabled={
+              customersLoad === 'loading' ||
+              customersLoad === 'error' ||
+              (customersLoad === 'ok' && customers.length === 0)
+            }
+            value={
+              customersLoad === 'ok' && customers.length > 0 && selectCustomers.some((c) => c.id === f.customerId)
+                ? f.customerId
+                : ''
+            }
             onChange={(e) => onPickCustomer(e.target.value)}
-            className="mt-1 w-full rounded border border-slate-300 px-3 py-2 text-sm"
+            className="mt-1 w-full rounded border border-slate-300 px-3 py-2 text-sm disabled:bg-slate-100 disabled:text-gunmetal-500"
           >
-            {filteredCustomers.length === 0 ? (
-              <option value="">該当する顧客がありません</option>
+            {customersLoad === 'loading' ? (
+              <option value="">顧客マスタを読み込み中…</option>
+            ) : customersLoad === 'error' ? (
+              <option value="">顧客一覧の取得に失敗しました（API・ネットワークを確認し、ページを再読み込みしてください）</option>
+            ) : customers.length === 0 ? (
+              <option value="">顧客マスタに登録がありません（先に顧客登録してください）</option>
             ) : (
-              filteredCustomers.map((c) => (
+              selectCustomers.map((c) => (
                 <option key={c.id} value={c.id}>
                   {c.customer_code} {c.company_name}
                   {c.closing_day != null ? `（締:${c.closing_day}）` : ''}
@@ -182,8 +218,13 @@ export function ArLedgerNewForm({ listMonth }: { listMonth: string }) {
               ))
             )}
           </select>
+          {customers.length > 0 && nameQuery.trim() && filteredCustomers.length === 0 ? (
+            <p className="mt-1 text-[10px] text-amber-700">
+              絞り込みに一致する顧客がありません。下の一覧は全件表示しています。
+            </p>
+          ) : null}
           <p className="mt-1 text-[10px] text-gunmetal-500">
-            絞り込みと締め日が一致する顧客が1件だけのとき、自動で選びます。
+            一覧は会社名・顧客コードの絞り込みで変わります（締め日では一覧を絞りません）。絞り込み後に締め日まで一致する顧客が1件だけのとき、自動で選びます。
           </p>
         </div>
         <div className="sm:col-span-2">
