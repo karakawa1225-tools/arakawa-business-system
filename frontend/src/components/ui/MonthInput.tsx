@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { formatYearMonthJa, parseYearMonthJa } from '@/lib/format';
 import { CalendarPickerIcon } from '@/components/ui/CalendarPickerIcon';
 
@@ -17,10 +17,27 @@ export type MonthInputProps = Omit<
 /** 表示は「2026年04月」形式。内部値は YYYY-MM */
 export function MonthInput({ value, onChange, className, disabled, ...rest }: MonthInputProps) {
   const [draft, setDraft] = useState(() => formatYearMonthJa(value));
+  const monthRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     setDraft(formatYearMonthJa(value));
   }, [value]);
+
+  const openMonthPicker = useCallback(() => {
+    const el = monthRef.current;
+    if (!el || disabled) return;
+    const anyEl = el as HTMLInputElement & { showPicker?: () => void };
+    if (typeof anyEl.showPicker === 'function') {
+      try {
+        anyEl.showPicker();
+        return;
+      } catch {
+        /* 一部ブラウザはコンテキストによって拒否 */
+      }
+    }
+    el.focus();
+    el.click();
+  }, [disabled]);
 
   const onPickerChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -45,6 +62,8 @@ export function MonthInput({ value, onChange, className, disabled, ...rest }: Mo
     }
   }, [draft, onChange, value]);
 
+  const monthValue = YM.test(value) ? value : '';
+
   return (
     <div className={`flex flex-wrap items-center gap-2 ${className ?? ''}`}>
       <input
@@ -59,30 +78,31 @@ export function MonthInput({ value, onChange, className, disabled, ...rest }: Mo
         autoComplete="off"
         {...rest}
       />
-      {/*
-        iOS Safari は sr-only + programmatic click() で month ピッカーが開かないことがあるため、
-        ネイティブ input をボタン表示域に重ねて直接タップで開く。
-      */}
-      <div
+      {/* type=month は視覚的に隠し、ボタンから showPicker / click で開く（買掛一覧などでタップが効かない端末向け） */}
+      <input
+        ref={monthRef}
+        type="month"
+        min="2000-01"
+        max="2100-12"
+        tabIndex={-1}
+        value={monthValue}
+        onChange={onPickerChange}
+        disabled={disabled}
+        aria-hidden
+        className="pointer-events-none fixed left-0 top-0 -z-10 h-px w-px opacity-0"
+      />
+      <button
+        type="button"
         title="年月をカレンダーで選択"
-        className={`relative inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-navy-950/30 bg-navy-900 text-white shadow-sm transition-[background-color,box-shadow,transform] sm:h-9 sm:w-9 ${
-          disabled
-            ? 'pointer-events-none opacity-40'
-            : 'hover:bg-navy-800 hover:shadow-md active:scale-[0.97] focus-within:ring-2 focus-within:ring-navy-400 focus-within:ring-offset-2'
+        disabled={disabled}
+        onClick={() => openMonthPicker()}
+        className={`inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-navy-950/30 bg-navy-900 text-white shadow-sm transition-[background-color,box-shadow,transform] sm:h-9 sm:w-9 ${
+          disabled ? 'cursor-not-allowed opacity-40' : 'hover:bg-navy-800 hover:shadow-md active:scale-[0.97]'
         }`}
+        aria-label="年月をカレンダーで選択"
       >
-        <input
-          type="month"
-          className="absolute inset-0 z-10 m-0 h-full w-full cursor-pointer opacity-0 disabled:cursor-not-allowed"
-          value={YM.test(value) ? value : ''}
-          onChange={onPickerChange}
-          disabled={disabled}
-          aria-label="年月をカレンダーで選択"
-        />
-        <span className="pointer-events-none flex items-center justify-center">
-          <CalendarPickerIcon className="h-[1.125rem] w-[1.125rem]" />
-        </span>
-      </div>
+        <CalendarPickerIcon className="h-[1.125rem] w-[1.125rem]" />
+      </button>
     </div>
   );
 }
