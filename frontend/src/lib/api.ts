@@ -54,7 +54,7 @@ function networkErrorHint(url: string, net: unknown): string {
     }
     if (url.startsWith('https://')) {
       return (
-        ' Render のスリープ・CORS・一時的なネットワーク障害の可能性があります。数分後に再試行するか、Vercel で NEXT_PUBLIC_API_URL を未設定にして同一オリジンの /api プロキシのみ使う方法もあります。'
+        ' Render のスリープ・CORS・一時的なネットワーク障害の可能性があります。数分後に再試行するか、NEXT_PUBLIC_API_DIRECT を外して同一オリジンの /api プロキシ経由にしてください。'
       );
     }
     return (
