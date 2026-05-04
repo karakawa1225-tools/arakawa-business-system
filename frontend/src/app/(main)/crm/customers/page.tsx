@@ -34,15 +34,28 @@ export default function CustomersPage() {
   const sp = useSearchParams();
   const pickFor = safePickForReturnPath(sp.get('pickFor'));
   const [rows, setRows] = useState<Customer[]>([]);
+  /** 取得失敗と「DBに0件」を混同しない（従来は失敗時も「顧客がまだありません」と出ていた） */
+  const [listLoad, setListLoad] = useState<'loading' | 'ok' | 'error'>('loading');
+  const [listError, setListError] = useState('');
 
   const load = useCallback(() => {
+    setListLoad('loading');
+    setListError('');
     api<Customer[]>('/api/customers')
       .then((data) => {
-        if (Array.isArray(data)) setRows(data);
-        else console.warn('[CustomersPage] /api/customers: unexpected shape', data);
+        if (!Array.isArray(data)) {
+          setListLoad('error');
+          setListError('一覧の形式が不正です（配列ではありません）。API の URL やログインを確認してください。');
+          return;
+        }
+        setRows(data);
+        setListLoad('ok');
       })
       .catch((e) => {
         console.error('[CustomersPage] /api/customers', e);
+        const msg = e instanceof Error ? e.message : String(e);
+        setListLoad('error');
+        setListError(msg || '一覧を取得できませんでした。');
       });
   }, []);
 
@@ -55,7 +68,20 @@ export default function CustomersPage() {
       {pickFor ? (
         <div className="mb-4 rounded border border-amber-200 bg-amber-50/90 px-4 py-3 text-sm text-amber-950">
           <strong>売掛金の新規登録から開いています。</strong>
-          戻るには、下の一覧で対象の <strong>顧客コード</strong> をクリックしてください（会社名が売掛画面の絞り込み欄に入ります）。
+          戻るには、下の一覧で対象の <strong>顧客コード</strong> をクリックしてください。
+        </div>
+      ) : null}
+      {listLoad === 'error' ? (
+        <div className="mb-4 rounded border border-red-200 bg-red-50/90 px-4 py-3 text-sm text-red-950" role="alert">
+          <p className="font-medium">顧客一覧を取得できませんでした（データが消えたわけではなく、通信または認証の問題の可能性が高いです）。</p>
+          <p className="mt-2 whitespace-pre-wrap break-words text-xs">{listError}</p>
+          <button
+            type="button"
+            onClick={() => load()}
+            className="mt-3 rounded border border-red-300 bg-white px-3 py-1.5 text-xs font-medium text-red-900 hover:bg-red-50"
+          >
+            再試行
+          </button>
         </div>
       ) : null}
       <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
@@ -92,6 +118,13 @@ export default function CustomersPage() {
             </tr>
           </thead>
           <tbody>
+            {listLoad === 'loading' && rows.length === 0 ? (
+              <tr>
+                <td colSpan={5} className="px-4 py-8 text-center text-gunmetal-600">
+                  読み込み中…
+                </td>
+              </tr>
+            ) : null}
             {rows.map((c) => (
               <tr key={c.id} className="border-b border-slate-100 hover:bg-slate-50/50">
                 <td className="px-4 py-3">
@@ -122,13 +155,13 @@ export default function CustomersPage() {
                 <td className="px-4 py-3 text-gunmetal-600">{c.phone ?? '—'}</td>
               </tr>
             ))}
-            {rows.length === 0 && (
+            {listLoad === 'ok' && rows.length === 0 ? (
               <tr>
                 <td colSpan={5} className="px-4 py-8 text-center text-gunmetal-500">
-                  顧客がまだありません
+                  顧客マスタに登録がありません（先に顧客登録または CSV 取り込みを行ってください）
                 </td>
               </tr>
-            )}
+            ) : null}
           </tbody>
         </table>
       </Card>

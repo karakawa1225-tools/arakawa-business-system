@@ -1,21 +1,15 @@
 'use client';
 
 import Link from 'next/link';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Card } from '@/components/ui/Card';
-import { api, apiBaseUrl } from '@/lib/api';
+import { api } from '@/lib/api';
 import { runSave } from '@/lib/save';
 import { CurrencyInput } from '@/components/ui/CurrencyInput';
 import { taxFromExclusiveNet, ratePercentFromKey, type LedgerTaxRateKey } from '@/lib/taxCalc';
 
 type Customer = { id: string; customer_code: string; company_name: string; closing_day: number | null };
-
-const CUSTOMERS_LIST_PATH = '/api/customers';
-
-function norm(s: string): string {
-  return s.trim().toLowerCase();
-}
 
 function formatApiCatch(e: unknown): string {
   if (e instanceof Error && e.message.trim()) return e.message.trim();
@@ -30,7 +24,24 @@ function formatApiCatch(e: unknown): string {
   } catch {
     /* ignore */
   }
-  return 'エラー内容を取得できませんでした。開発者ツール（F12）の Network で /api/customers のステータスと本文を確認してください。';
+  return 'エラー詳細を取得できませんでした。F12 → Network で /api/customers/（ID）の応答を確認してください。';
+}
+
+function mapCustomerRow(row: {
+  id: string;
+  customer_code?: string;
+  company_name?: string;
+  closing_day?: unknown;
+}): Customer {
+  const rawCd = row.closing_day;
+  const closingNum =
+    rawCd != null && rawCd !== '' && Number.isFinite(Number(rawCd)) ? Number(rawCd) : null;
+  return {
+    id: String(row.id),
+    customer_code: String(row.customer_code ?? ''),
+    company_name: String(row.company_name ?? ''),
+    closing_day: closingNum != null && closingNum >= 1 && closingNum <= 31 ? closingNum : null,
+  };
 }
 
 export function ArLedgerNewForm({
@@ -38,20 +49,15 @@ export function ArLedgerNewForm({
   initialCustomerId = null,
 }: {
   listMonth: string;
-  /** 顧客一覧から戻るときの ?customerId=（1件取得でフォームに反映） */
+  /** 顧客一覧から戻るときの ?customerId=（GET /api/customers/:id のみ） */
   initialCustomerId?: string | null;
 }) {
   const router = useRouter();
   const pdfRef = useRef<HTMLInputElement | null>(null);
-  const initialCustomerIdRef = useRef<string | null>(null);
-  initialCustomerIdRef.current = initialCustomerId?.trim() || null;
-
-  const [customers, setCustomers] = useState<Customer[]>([]);
-  /** API 失敗と「マスタ0件」を区別する（失敗時は空配列のままになりがち） */
-  const [customersLoad, setCustomersLoad] = useState<'loading' | 'ok' | 'error'>('loading');
-  const [customersLoadError, setCustomersLoadError] = useState('');
+  const [picked, setPicked] = useState<Customer | null>(null);
+  const [pickLoad, setPickLoad] = useState<'idle' | 'loading' | 'ok' | 'error'>('idle');
+  const [pickError, setPickError] = useState('');
   const [pdfName, setPdfName] = useState('');
-  const [nameQuery, setNameQuery] = useState('');
 
   const [f, setF] = useState({
     customerId: '',
@@ -63,29 +69,6 @@ export function ArLedgerNewForm({
     pdfDataUrl: '',
   });
 
-  const filteredCustomers = useMemo(() => {
-    const raw = nameQuery.trim();
-    if (!raw) return customers;
-    const q = norm(raw);
-    return customers.filter(
-      (c) =>
-        norm(c.company_name).includes(q) ||
-        norm(c.customer_code).includes(q)
-    );
-  }, [customers, nameQuery]);
-
-  /** 絞り込み0件でも一覧は全件表示（入力ミスで一覧が空にならないようにする） */
-  const selectCustomers = useMemo(() => {
-    if (customers.length === 0) return [];
-    return filteredCustomers.length > 0 ? filteredCustomers : customers;
-  }, [customers, filteredCustomers]);
-
-  /** 一覧から選びやすいよう複数行表示（プレースホルダー時は 1 行） */
-  const customerListSelectSize = useMemo(() => {
-    if (customersLoad !== 'ok' || customers.length === 0) return 1;
-    return Math.min(14, Math.max(5, selectCustomers.length));
-  }, [customersLoad, customers.length, selectCustomers.length]);
-
   useEffect(() => {
     setF((p) => {
       const r = ratePercentFromKey(p.taxRateKey);
@@ -94,154 +77,60 @@ export function ArLedgerNewForm({
     });
   }, [f.salesAmount, f.taxRateKey]);
 
-  const loadCustomers = useCallback(() => {
-    setCustomersLoad('loading');
-    setCustomersLoadError('');
-    api<Customer[]>(CUSTOMERS_LIST_PATH)
-      .then((c) => {
-        if (!Array.isArray(c)) {
-          setCustomers([]);
-          setCustomersLoad('error');
-          setCustomersLoadError(
-            `応答が配列ではありません（${c === null ? 'null' : typeof c}）。プロキシ先の URL やログイン状態を確認してください。`
-          );
-          return;
-        }
-        setCustomers(c);
-        setCustomersLoad('ok');
-        setCustomersLoadError('');
-        const prefer = initialCustomerIdRef.current;
-        const chosen =
-          prefer && c.some((x) => x.id === prefer) ? c.find((x) => x.id === prefer)! : c[0];
-        if (chosen) {
-          setF((p) => ({
-            ...p,
-            customerId: chosen.id,
-            closingDay: String(chosen.closing_day ?? ''),
-          }));
-        }
-      })
-      .catch((e) => {
-        console.error('[ArLedgerNewForm] /api/customers', e);
-        const errMsg = formatApiCatch(e).slice(0, 1200);
-        setCustomers((prev) => {
-          if (prev.length > 0) {
-            setCustomersLoad('ok');
-            setCustomersLoadError('');
-          } else {
-            setCustomersLoad('error');
-            setCustomersLoadError(errMsg);
-          }
-          return prev;
-        });
-      });
+  const fetchPicked = useCallback(async (id: string) => {
+    setPickLoad('loading');
+    setPickError('');
+    try {
+      const row = await api<{
+        id: string;
+        customer_code?: string;
+        company_name?: string;
+        closing_day?: unknown;
+      }>(`/api/customers/${encodeURIComponent(id)}`);
+      const mapped = mapCustomerRow(row);
+      setPicked(mapped);
+      setF((p) => ({
+        ...p,
+        customerId: mapped.id,
+        closingDay: String(mapped.closing_day ?? ''),
+      }));
+      setPickLoad('ok');
+    } catch (e) {
+      console.error('[ArLedgerNewForm] GET /api/customers/:id', e);
+      setPicked(null);
+      setF((p) => ({ ...p, customerId: '', closingDay: '' }));
+      setPickLoad('error');
+      setPickError(formatApiCatch(e).slice(0, 800));
+    }
   }, []);
 
   useEffect(() => {
-    loadCustomers();
-  }, [loadCustomers]);
-
-  /** 顧客一覧から ?customerId= で戻ったとき（一覧取得が失敗していても1件取得で復旧） */
-  useEffect(() => {
     const id = initialCustomerId?.trim();
-    if (!id) return;
-    let cancelled = false;
-    (async () => {
-      try {
-        const row = await api<{
-          id: string;
-          customer_code?: string;
-          company_name?: string;
-          closing_day?: unknown;
-        }>(`/api/customers/${encodeURIComponent(id)}`);
-        if (cancelled) return;
-        const rawCd = row.closing_day;
-        const closingNum =
-          rawCd != null && rawCd !== '' && Number.isFinite(Number(rawCd)) ? Number(rawCd) : null;
-        const mapped: Customer = {
-          id: String(row.id),
-          customer_code: String(row.customer_code ?? ''),
-          company_name: String(row.company_name ?? ''),
-          closing_day:
-            closingNum != null && closingNum >= 1 && closingNum <= 31 ? closingNum : null,
-        };
-        setCustomers((prev) => {
-          const others = prev.filter((c) => c.id !== mapped.id);
-          return [mapped, ...others];
-        });
-        setF((p) => ({
-          ...p,
-          customerId: mapped.id,
-          closingDay: String(mapped.closing_day ?? ''),
-        }));
-        setNameQuery(mapped.company_name);
-        setCustomersLoad('ok');
-        setCustomersLoadError('');
-      } catch (err) {
-        console.error('[ArLedgerNewForm] /api/customers/:id', err);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [initialCustomerId]);
-
-  /** ドロップダウン表示集合に選択中IDが無ければ先頭へ */
-  useEffect(() => {
-    if (selectCustomers.length === 0) return;
-    if (!selectCustomers.some((c) => c.id === f.customerId)) {
-      const first = selectCustomers[0];
-      setF((p) => ({ ...p, customerId: first.id, closingDay: String(first.closing_day ?? '') }));
-    }
-  }, [selectCustomers, f.customerId]);
-
-  /** 顧客名（絞り込み）＋締め日から顧客マスタをルックアップ */
-  useEffect(() => {
-    if (customers.length === 0) return;
-    const list = filteredCustomers;
-    if (list.length === 0) return;
-
-    const dayStr = f.closingDay.trim();
-    const dayNum = dayStr === '' ? null : Number(dayStr);
-    const byDay =
-      dayNum != null && Number.isFinite(dayNum) && dayNum >= 1 && dayNum <= 31
-        ? list.filter((c) => c.closing_day === dayNum)
-        : null;
-
-    if (byDay && byDay.length === 1) {
-      const c = byDay[0];
-      if (f.customerId !== c.id) {
-        setF((p) => ({ ...p, customerId: c.id }));
-      }
+    if (!id) {
+      setPickLoad('idle');
       return;
     }
+    void fetchPicked(id);
+  }, [initialCustomerId, fetchPicked]);
 
-    if (list.length === 1) {
-      const c = list[0];
-      if (f.customerId !== c.id) {
-        setF((p) => ({ ...p, customerId: c.id, closingDay: String(c.closing_day ?? '') }));
-      }
-    }
-  }, [customers, filteredCustomers, f.closingDay, f.customerId]);
-
-  function onPickCustomer(id: string) {
-    const c = customers.find((x) => x.id === id);
-    setF((p) => ({
-      ...p,
-      customerId: id,
-      closingDay: c ? String(c.closing_day ?? '') : p.closingDay,
-    }));
-    setNameQuery('');
+  function clearCustomer() {
+    setPicked(null);
+    setPickLoad('idle');
+    setPickError('');
+    setF((p) => ({ ...p, customerId: '', closingDay: '' }));
+    router.replace(`/accounting/ar/new?month=${encodeURIComponent(listMonth)}`);
   }
 
   async function add(e: React.FormEvent) {
     e.preventDefault();
-    if (customersLoad !== 'ok') {
-      window.alert('顧客マスタの読み込みが完了していません。再読み込みしてください。');
+    if (!f.customerId || !picked) {
+      window.alert(
+        '「顧客一覧を別タブで開く」から一覧を開き、対象の顧客コードをクリックしてこの画面に戻ってください。'
+      );
       return;
     }
-    if (!f.customerId) {
-      window.alert('顧客を選択してください');
+    if (pickLoad === 'error') {
+      window.alert('顧客の取得に失敗しています。下の「再試行」またはログイン・API接続を確認してください。');
       return;
     }
     await runSave(
@@ -266,6 +155,7 @@ export function ArLedgerNewForm({
   }
 
   const backHref = `/accounting/ar?month=${encodeURIComponent(listMonth)}`;
+  const pickForHref = `/crm/customers?pickFor=${encodeURIComponent(`/accounting/ar/new?month=${listMonth}`)}`;
 
   return (
     <Card className="max-w-xl">
@@ -280,7 +170,7 @@ export function ArLedgerNewForm({
           <div className="flex flex-wrap items-end justify-between gap-2">
             <label className="text-[11px] font-medium text-gunmetal-600">顧客（顧客マスタ）</label>
             <Link
-              href={`/crm/customers?pickFor=${encodeURIComponent(`/accounting/ar/new?month=${listMonth}`)}`}
+              href={pickForHref}
               target="_blank"
               rel="noopener noreferrer"
               className="text-[11px] font-medium text-navy-800 underline decoration-slate-300 underline-offset-2 hover:decoration-navy-800"
@@ -288,82 +178,58 @@ export function ArLedgerNewForm({
               顧客一覧を別タブで開く
             </Link>
           </div>
-          <input
-            type="text"
-            value={nameQuery}
-            onChange={(e) => setNameQuery(e.target.value)}
-            placeholder="一覧の絞り込み（会社名・顧客コードの一部。空欄なら全件）"
-            className="mt-1 w-full rounded border border-slate-300 px-3 py-2 text-sm"
-            autoComplete="off"
-          />
-          <select
-            aria-label="顧客一覧から選択"
-            size={customerListSelectSize}
-            required={customersLoad === 'ok' && customers.length > 0}
-            disabled={
-              customersLoad === 'loading' ||
-              customersLoad === 'error' ||
-              (customersLoad === 'ok' && customers.length === 0)
-            }
-            value={
-              customersLoad === 'ok' && customers.length > 0 && selectCustomers.some((c) => c.id === f.customerId)
-                ? f.customerId
-                : ''
-            }
-            onChange={(e) => onPickCustomer(e.target.value)}
-            className="mt-2 w-full rounded border border-slate-300 bg-white px-2 py-1 text-sm disabled:bg-slate-100 disabled:text-gunmetal-500"
-          >
-            {customersLoad === 'loading' ? (
-              <option value="">顧客マスタを読み込み中…</option>
-            ) : customersLoad === 'error' ? (
-              <option value="">顧客一覧の取得に失敗しました（API・ネットワークを確認し、ページを再読み込みしてください）</option>
-            ) : customers.length === 0 ? (
-              <option value="">顧客マスタに登録がありません（先に顧客登録してください）</option>
-            ) : (
-              selectCustomers.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.customer_code} {c.company_name}
-                  {c.closing_day != null ? `（締:${c.closing_day}）` : ''}
-                </option>
-              ))
-            )}
-          </select>
-          {customersLoad === 'error' ? (
-            <div
-              className="mt-2 rounded border border-red-200 bg-red-50/90 px-3 py-2 text-xs text-red-950"
-              role="alert"
-            >
-              {customersLoadError ? (
-                <p className="whitespace-pre-wrap break-words font-medium leading-snug">{customersLoadError}</p>
-              ) : (
-                <p className="font-medium leading-snug">顧客一覧の取得に失敗しました（理由の文字列が空です）。</p>
-              )}
-              <p className="mt-2 break-all font-mono text-[11px] leading-snug text-red-900/90">
-                リクエスト先:{' '}
-                {apiBaseUrl()
-                  ? `${apiBaseUrl()}${CUSTOMERS_LIST_PATH}`
-                  : `${typeof window !== 'undefined' ? window.location.origin : ''}${CUSTOMERS_LIST_PATH}`}
-              </p>
-              <p className="mt-1 text-[11px] leading-snug text-gunmetal-800">
-                401 や「認証が必要」なら再ログイン。URL に <code className="rounded bg-white/80 px-0.5">/api/api/</code>{' '}
-                が含まれていないか確認してください。
-              </p>
+
+          {initialCustomerId && pickLoad === 'loading' ? (
+            <p className="mt-2 text-sm text-gunmetal-600">顧客を読み込み中です…</p>
+          ) : null}
+
+          {pickLoad === 'error' ? (
+            <div className="mt-2 rounded border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-950" role="alert">
+              <p className="whitespace-pre-wrap font-medium leading-snug">{pickError}</p>
+              {initialCustomerId ? (
+                <button
+                  type="button"
+                  onClick={() => void fetchPicked(initialCustomerId)}
+                  className="mt-2 rounded border border-red-300 bg-white px-3 py-1.5 text-[11px] font-medium text-red-900 hover:bg-red-50"
+                >
+                  再試行
+                </button>
+              ) : null}
+            </div>
+          ) : null}
+
+          {picked && pickLoad === 'ok' ? (
+            <div className="mt-3 rounded border border-slate-200 bg-slate-50/90 px-3 py-3 text-sm">
+              <div className="grid gap-1">
+                <div>
+                  <span className="text-[11px] text-gunmetal-600">顧客コード</span>
+                  <div className="font-medium text-navy-900">{picked.customer_code}</div>
+                </div>
+                <div>
+                  <span className="text-[11px] text-gunmetal-600">会社名</span>
+                  <div className="font-medium text-navy-900">{picked.company_name}</div>
+                </div>
+              </div>
               <button
                 type="button"
-                onClick={() => loadCustomers()}
-                className="mt-2 rounded border border-red-300 bg-white px-3 py-1.5 text-[11px] font-medium text-red-900 hover:bg-red-50"
+                onClick={clearCustomer}
+                className="mt-3 text-[11px] font-medium text-navy-800 underline"
               >
-                再試行
+                別の顧客を選ぶ
               </button>
             </div>
           ) : null}
-          {customers.length > 0 && nameQuery.trim() && filteredCustomers.length === 0 ? (
-            <p className="mt-1 text-[10px] text-amber-700">
-              絞り込みに一致する顧客がありません。下の一覧は全件表示しています。
+
+          {!initialCustomerId && pickLoad === 'idle' && !picked ? (
+            <p className="mt-2 text-sm leading-relaxed text-gunmetal-700">
+              右上の「顧客一覧を別タブで開く」を押し、一覧で対象の{' '}
+              <strong>顧客コード</strong> をクリックしてこの画面に戻ると、ここに会社名が表示されます（この画面では顧客の
+              <strong>一括取得は行いません</strong>）。
             </p>
           ) : null}
-          <p className="mt-1 text-[10px] text-gunmetal-500">
-            上の一覧から選ぶか、右上「顧客一覧を別タブで開く」から顧客コードを押すと、会社名が絞り込み欄に入ります。上の入力で名前・コードを絞り込めます（締め日では一覧を絞りません）。絞り込み後に締め日まで一致する顧客が1件だけのとき、自動で選びます。
+
+          <p className="mt-2 text-[10px] text-gunmetal-500">
+            締め日は下の欄で必要に応じて変更できます（マスタの締め日を初期表示しています）。
           </p>
         </div>
         <div className="sm:col-span-2">
