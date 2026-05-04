@@ -1,18 +1,36 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Card } from '@/components/ui/Card';
-import { api } from '@/lib/api';
+import { api, apiBaseUrl } from '@/lib/api';
 import { runSave } from '@/lib/save';
 import { CurrencyInput } from '@/components/ui/CurrencyInput';
 import { taxFromExclusiveNet, ratePercentFromKey, type LedgerTaxRateKey } from '@/lib/taxCalc';
 
 type Customer = { id: string; customer_code: string; company_name: string; closing_day: number | null };
 
+const CUSTOMERS_LIST_PATH = '/api/customers';
+
 function norm(s: string): string {
   return s.trim().toLowerCase();
+}
+
+function formatApiCatch(e: unknown): string {
+  if (e instanceof Error && e.message.trim()) return e.message.trim();
+  if (typeof e === 'string' && e.trim()) return e.trim();
+  if (e && typeof e === 'object' && 'message' in e) {
+    const m = (e as { message: unknown }).message;
+    if (typeof m === 'string' && m.trim()) return m.trim();
+  }
+  try {
+    const j = JSON.stringify(e);
+    if (j && j !== '{}') return j.slice(0, 600);
+  } catch {
+    /* ignore */
+  }
+  return 'エラー内容を取得できませんでした。開発者ツール（F12）の Network で /api/customers のステータスと本文を確認してください。';
 }
 
 export function ArLedgerNewForm({ listMonth }: { listMonth: string }) {
@@ -21,6 +39,7 @@ export function ArLedgerNewForm({ listMonth }: { listMonth: string }) {
   const [customers, setCustomers] = useState<Customer[]>([]);
   /** API 失敗と「マスタ0件」を区別する（失敗時は空配列のままになりがち） */
   const [customersLoad, setCustomersLoad] = useState<'loading' | 'ok' | 'error'>('loading');
+  const [customersLoadError, setCustomersLoadError] = useState('');
   const [pdfName, setPdfName] = useState('');
   const [nameQuery, setNameQuery] = useState('');
 
@@ -59,18 +78,27 @@ export function ArLedgerNewForm({ listMonth }: { listMonth: string }) {
     });
   }, [f.salesAmount, f.taxRateKey]);
 
-  useEffect(() => {
+  const loadCustomers = useCallback(() => {
     setCustomersLoad('loading');
-    api<Customer[]>('/api/customers')
+    setCustomersLoadError('');
+    api<Customer[]>(CUSTOMERS_LIST_PATH)
       .then((c) => {
-        const list = Array.isArray(c) ? c : [];
-        setCustomers(list);
+        if (!Array.isArray(c)) {
+          setCustomers([]);
+          setCustomersLoad('error');
+          setCustomersLoadError(
+            `応答が配列ではありません（${c === null ? 'null' : typeof c}）。プロキシ先の URL やログイン状態を確認してください。`
+          );
+          return;
+        }
+        setCustomers(c);
         setCustomersLoad('ok');
-        if (list[0]) {
+        setCustomersLoadError('');
+        if (c[0]) {
           setF((p) => ({
             ...p,
-            customerId: list[0].id,
-            closingDay: String(list[0].closing_day ?? ''),
+            customerId: c[0].id,
+            closingDay: String(c[0].closing_day ?? ''),
           }));
         }
       })
@@ -78,8 +106,13 @@ export function ArLedgerNewForm({ listMonth }: { listMonth: string }) {
         console.error('[ArLedgerNewForm] /api/customers', e);
         setCustomers([]);
         setCustomersLoad('error');
+        setCustomersLoadError(formatApiCatch(e).slice(0, 1200));
       });
   }, []);
+
+  useEffect(() => {
+    loadCustomers();
+  }, [loadCustomers]);
 
   /** ドロップダウン表示集合に選択中IDが無ければ先頭へ */
   useEffect(() => {
@@ -218,6 +251,35 @@ export function ArLedgerNewForm({ listMonth }: { listMonth: string }) {
               ))
             )}
           </select>
+          {customersLoad === 'error' ? (
+            <div
+              className="mt-2 rounded border border-red-200 bg-red-50/90 px-3 py-2 text-xs text-red-950"
+              role="alert"
+            >
+              {customersLoadError ? (
+                <p className="whitespace-pre-wrap break-words font-medium leading-snug">{customersLoadError}</p>
+              ) : (
+                <p className="font-medium leading-snug">顧客一覧の取得に失敗しました（理由の文字列が空です）。</p>
+              )}
+              <p className="mt-2 break-all font-mono text-[11px] leading-snug text-red-900/90">
+                リクエスト先:{' '}
+                {apiBaseUrl()
+                  ? `${apiBaseUrl()}${CUSTOMERS_LIST_PATH}`
+                  : `${typeof window !== 'undefined' ? window.location.origin : ''}${CUSTOMERS_LIST_PATH}`}
+              </p>
+              <p className="mt-1 text-[11px] leading-snug text-gunmetal-800">
+                401 や「認証が必要」なら再ログイン。URL に <code className="rounded bg-white/80 px-0.5">/api/api/</code>{' '}
+                が含まれていないか確認してください。
+              </p>
+              <button
+                type="button"
+                onClick={() => loadCustomers()}
+                className="mt-2 rounded border border-red-300 bg-white px-3 py-1.5 text-[11px] font-medium text-red-900 hover:bg-red-50"
+              >
+                再試行
+              </button>
+            </div>
+          ) : null}
           {customers.length > 0 && nameQuery.trim() && filteredCustomers.length === 0 ? (
             <p className="mt-1 text-[10px] text-amber-700">
               絞り込みに一致する顧客がありません。下の一覧は全件表示しています。

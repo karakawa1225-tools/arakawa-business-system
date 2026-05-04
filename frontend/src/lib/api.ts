@@ -9,7 +9,10 @@
  * サーバー側: BACKEND_PROXY_TARGET → NEXT_PUBLIC_API_URL → http://127.0.0.1:4000
  */
 function normalizeApiOrigin(raw: string): string {
-  return raw.replace(/\/+$/, '');
+  let b = raw.trim().replace(/\/+$/, '');
+  // 誤って .../api まで指定すると fetch が /api/api/... になり 404 になりやすい（プロキシ route と同じ扱い）
+  if (b.endsWith('/api')) b = b.slice(0, -4).replace(/\/+$/, '');
+  return b;
 }
 
 /**
