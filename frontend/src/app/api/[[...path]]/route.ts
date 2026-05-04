@@ -1,5 +1,6 @@
 import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
+import { vercelBackendOrigin } from '@/lib/vercelBackendOrigin';
 
 /**
  * Next.js の next.config rewrites 経由だと PATCH / PUT / DELETE がバックエンドに届かない環境がある。
@@ -9,26 +10,6 @@ export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 /** Render コールドスタート等。Pro では maxDuration に合わせて長めの転送が可能。 */
 export const maxDuration = 60;
-
-function normalizeProxyTarget(raw: string): string {
-  let b = raw.trim().replace(/\/+$/, '');
-  // 誤って .../api まで指定すると /api/api/... となり一覧は通っても一部が 404 になる
-  if (b.endsWith('/api')) b = b.slice(0, -4);
-  // Render 等は https 推奨。http のみだとリダイレクトや接続差分で不安定になることがある
-  if (/^http:\/\/[^/]+\.onrender\.com/i.test(b)) {
-    b = `https://${b.slice('http://'.length)}`;
-  }
-  return b;
-}
-
-/** リクエストごとに解決（ビルド時固定の取り違えを避ける） */
-function backendOrigin(): string {
-  return normalizeProxyTarget(
-    process.env.BACKEND_PROXY_TARGET ||
-      process.env.NEXT_PUBLIC_API_URL ||
-      'http://127.0.0.1:4000'
-  );
-}
 
 /** fetch が再計算するヘッやプロキシで壊れやすいものを除外 */
 const SKIP_REQUEST_HEADERS = new Set([
@@ -64,7 +45,7 @@ function forwardResponseHeaders(incoming: Headers): Headers {
 }
 
 async function proxy(req: NextRequest): Promise<NextResponse> {
-  const BACKEND = backendOrigin();
+  const BACKEND = vercelBackendOrigin();
   const dest = `${BACKEND}${req.nextUrl.pathname}${req.nextUrl.search}`;
   const method = req.method.toUpperCase();
   const withBody = !['GET', 'HEAD'].includes(method);

@@ -144,6 +144,10 @@ export default function LoginPage() {
           <Link href="/portal/login" className="hover:underline">
             顧客ポータル
           </Link>
+          {' · '}
+          <a href="/api/proxy-health" target="_blank" rel="noreferrer" className="text-navy-800 hover:underline">
+            接続診断（Vercel経由）
+          </a>
         </p>
       </div>
     </div>
