@@ -64,11 +64,17 @@ export function ArLedgerNewForm({ listMonth }: { listMonth: string }) {
     );
   }, [customers, nameQuery]);
 
-  /** 絞り込み0件でもドロップダウンは全件表示（入力ミスで一覧が消えないようにする） */
+  /** 絞り込み0件でも一覧は全件表示（入力ミスで一覧が空にならないようにする） */
   const selectCustomers = useMemo(() => {
     if (customers.length === 0) return [];
     return filteredCustomers.length > 0 ? filteredCustomers : customers;
   }, [customers, filteredCustomers]);
+
+  /** 一覧から選びやすいよう複数行表示（プレースホルダー時は 1 行） */
+  const customerListSelectSize = useMemo(() => {
+    if (customersLoad !== 'ok' || customers.length === 0) return 1;
+    return Math.min(14, Math.max(5, selectCustomers.length));
+  }, [customersLoad, customers.length, selectCustomers.length]);
 
   useEffect(() => {
     setF((p) => {
@@ -205,23 +211,28 @@ export function ArLedgerNewForm({ listMonth }: { listMonth: string }) {
       <h2 className="text-sm font-medium">新規登録（対象月: {listMonth}）</h2>
       <form onSubmit={add} className="mt-3 grid gap-3 sm:grid-cols-2">
         <div className="sm:col-span-2">
-          <label className="text-[11px] font-medium text-gunmetal-600">顧客名（顧客マスタ）</label>
+          <div className="flex flex-wrap items-end justify-between gap-2">
+            <label className="text-[11px] font-medium text-gunmetal-600">顧客（顧客マスタ）</label>
+            <Link
+              href="/crm/customers"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-[11px] font-medium text-navy-800 underline decoration-slate-300 underline-offset-2 hover:decoration-navy-800"
+            >
+              顧客一覧を別タブで開く
+            </Link>
+          </div>
           <input
             type="text"
             value={nameQuery}
             onChange={(e) => setNameQuery(e.target.value)}
-            placeholder="会社名・顧客コードの一部で絞り込み"
+            placeholder="一覧の絞り込み（会社名・顧客コードの一部。空欄なら全件）"
             className="mt-1 w-full rounded border border-slate-300 px-3 py-2 text-sm"
-            list="ar-ledger-customer-datalist"
             autoComplete="off"
           />
-          <datalist id="ar-ledger-customer-datalist">
-            {customers.map((c) => (
-              <option key={c.id} value={c.company_name} label={`${c.customer_code} / 締:${c.closing_day ?? '—'}`} />
-            ))}
-          </datalist>
-          <label className="mt-2 block text-[11px] font-medium text-gunmetal-600">顧客を選択</label>
           <select
+            aria-label="顧客一覧から選択"
+            size={customerListSelectSize}
             required={customersLoad === 'ok' && customers.length > 0}
             disabled={
               customersLoad === 'loading' ||
@@ -234,7 +245,7 @@ export function ArLedgerNewForm({ listMonth }: { listMonth: string }) {
                 : ''
             }
             onChange={(e) => onPickCustomer(e.target.value)}
-            className="mt-1 w-full rounded border border-slate-300 px-3 py-2 text-sm disabled:bg-slate-100 disabled:text-gunmetal-500"
+            className="mt-2 w-full rounded border border-slate-300 bg-white px-2 py-1 text-sm disabled:bg-slate-100 disabled:text-gunmetal-500"
           >
             {customersLoad === 'loading' ? (
               <option value="">顧客マスタを読み込み中…</option>
@@ -286,7 +297,7 @@ export function ArLedgerNewForm({ listMonth }: { listMonth: string }) {
             </p>
           ) : null}
           <p className="mt-1 text-[10px] text-gunmetal-500">
-            一覧は会社名・顧客コードの絞り込みで変わります（締め日では一覧を絞りません）。絞り込み後に締め日まで一致する顧客が1件だけのとき、自動で選びます。
+            上の一覧から顧客をクリックして選びます。上の入力で名前・コードを絞り込めます（締め日では一覧を絞りません）。絞り込み後に締め日まで一致する顧客が1件だけのとき、自動で選びます。
           </p>
         </div>
         <div className="sm:col-span-2">
