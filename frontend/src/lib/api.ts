@@ -3,8 +3,8 @@
  * ページが localhost で API が 127.0.0.1 だと別オリジンになり、環境によって POST/PATCH/DELETE だけ失敗することがある。
  * `app/api/[[...path]]/route.ts` が全メソッドをバックエンドへ転送する。
  *
- * ブラウザ（本番ホスト）: `NEXT_PUBLIC_API_URL` があればバックエンドへ直接フェッチ（CORS は Express で許可）。
- * Vercel の Route Handler 経由だけだと環境変数未設定やプロキシ障害で「Failed to fetch」になりやすいため。
+ * ブラウザ（本番ホスト）: `NEXT_PUBLIC_API_URL` があればバックエンドへ直接フェッチする。
+ * 直アクセスが Failed to fetch（CORS・Render コールドスタート等）のときは、同一オリジンの `/api/...` に一度だけフォールバックする（Vercel の Route Handler が Render へ転送）。
  *
  * サーバー側: BACKEND_PROXY_TARGET → NEXT_PUBLIC_API_URL → http://127.0.0.1:4000
  */
@@ -60,6 +60,11 @@ function networkErrorHint(url: string, net: unknown): string {
     );
   }
   return '';
+}
+
+/** ブラウザがネットワーク層で失敗したとき（CORS・DNS・接続リセット等。本文が無い） */
+function isLikelyBrowserNetworkFailure(net: unknown): boolean {
+  return net instanceof Error && /failed to fetch|networkerror|load failed/i.test(net.message);
 }
 
 export const apiBaseUrl = (): string => {
@@ -135,23 +140,51 @@ export async function api<T>(
   }
   if (token) headers['Authorization'] = `Bearer ${token}`;
 
-  const url = `${apiBaseUrl()}${path}`;
+  const primaryBase = apiBaseUrl();
+  const buildUrl = (base: string) => `${base}${path}`;
+  const requestInit: RequestInit = {
+    ...fetchInit,
+    method,
+    headers,
+  };
+
   let res: Response;
+  let url = buildUrl(primaryBase);
   try {
-    res = await fetch(url, {
-      ...fetchInit,
-      method,
-      headers,
-    });
+    res = await fetch(url, requestInit);
   } catch (net) {
-    const localHint = isBrowserLocalHost()
-      ? ' ターミナルでバックエンドが起動しているか確認してください。'
-      : '';
-    throw new Error(
-      `APIに接続できません（${url}）。${localHint}` +
-        (net instanceof Error ? ` (${net.message})` : '') +
-        networkErrorHint(url, net)
-    );
+    const sameOriginFallback =
+      typeof window !== 'undefined' &&
+      !isBrowserLocalHost() &&
+      primaryBase !== '' &&
+      path.startsWith('/api/') &&
+      isLikelyBrowserNetworkFailure(net);
+
+    if (sameOriginFallback) {
+      const fallbackUrl = buildUrl('');
+      try {
+        res = await fetch(fallbackUrl, requestInit);
+        url = fallbackUrl;
+      } catch (net2) {
+        const localHint = isBrowserLocalHost()
+          ? ' ターミナルでバックエンドが起動しているか確認してください。'
+          : '';
+        throw new Error(
+          `APIに接続できません（直アクセス ${buildUrl(primaryBase)} と同一オリジン ${fallbackUrl} の両方で失敗）。${localHint}` +
+            (net2 instanceof Error ? ` (${net2.message})` : '') +
+            networkErrorHint(buildUrl(primaryBase), net2)
+        );
+      }
+    } else {
+      const localHint = isBrowserLocalHost()
+        ? ' ターミナルでバックエンドが起動しているか確認してください。'
+        : '';
+      throw new Error(
+        `APIに接続できません（${url}）。${localHint}` +
+          (net instanceof Error ? ` (${net.message})` : '') +
+          networkErrorHint(url, net)
+      );
+    }
   }
   const text = await res.text();
   let data: unknown = null;
@@ -211,18 +244,36 @@ export async function apiBlob(
   const token = getToken();
   const headers: HeadersInit = {};
   if (token) (headers as Record<string, string>)['Authorization'] = `Bearer ${token}`;
+  const primaryBase = apiBaseUrl();
+  const blobInit: RequestInit = { headers, signal: controller.signal };
   let res: Response;
   try {
-    res = await fetch(`${apiBaseUrl()}${path}`, { headers, signal: controller.signal });
+    res = await fetch(`${primaryBase}${path}`, blobInit);
   } catch (net) {
-    clearTimeout(t);
     if (net instanceof DOMException && net.name === 'AbortError') {
+      clearTimeout(t);
       throw new Error(
         `ファイルのダウンロードがタイムアウトしました（${Math.round(timeoutMs / 1000)} 秒）。` +
           'サーバーの負荷が高いか、開発サーバーを再起動してみてください。'
       );
     }
-    throw net instanceof Error ? net : new Error(String(net));
+    const sameOriginFallback =
+      typeof window !== 'undefined' &&
+      !isBrowserLocalHost() &&
+      primaryBase !== '' &&
+      path.startsWith('/api/') &&
+      isLikelyBrowserNetworkFailure(net);
+    if (sameOriginFallback) {
+      try {
+        res = await fetch(`${''}${path}`, blobInit);
+      } catch (net2) {
+        clearTimeout(t);
+        throw net2 instanceof Error ? net2 : new Error(String(net2));
+      }
+    } else {
+      clearTimeout(t);
+      throw net instanceof Error ? net : new Error(String(net));
+    }
   }
   clearTimeout(t);
   if (!res.ok) {
