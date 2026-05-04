@@ -95,7 +95,7 @@ async function proxy(req: NextRequest): Promise<NextResponse> {
       {
         error: isLocal
           ? `バックエンドに接続できません（${BACKEND}）。Vercel 本番では環境変数 BACKEND_PROXY_TARGET に Render の https://... を設定し再デプロイしてください。`
-          : `バックエンドに接続できません（${BACKEND}）。Render がスリープから起きるまで数十秒かかることがあります。数分後に再試行するか、フロントの NEXT_PUBLIC_API_URL で API に直接アクセスする設定にしてください。`,
+          : `バックエンドに接続できません（${BACKEND}）。Render がスリープから起きるまで数十秒かかることがあります。しばらく待ってからログインを再試行するか、Render の常時起動プランを検討してください。`,
       },
       { status: 502 }
     );

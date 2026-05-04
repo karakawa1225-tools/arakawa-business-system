@@ -32,19 +32,39 @@ export default function LoginPage() {
     };
   }, [router]);
 
+  function isRetryableLoginFailure(msg: string): boolean {
+    return /failed to fetch|network request failed|load failed|502|504|接続できません|タイムアウト/i.test(msg);
+  }
+
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setErr('');
-    try {
-      const r = await api<{ token: string }>('/api/auth/login', {
+    const body = JSON.stringify({ email, password });
+    const attempt = () =>
+      api<{ token: string }>('/api/auth/login', {
         method: 'POST',
-        body: JSON.stringify({ email, password }),
+        body,
         token: false,
       });
+    try {
+      const r = await attempt();
       setToken(r.token);
       router.push('/home');
     } catch (e: unknown) {
-      setErr(e instanceof Error ? e.message : 'エラー');
+      const msg = e instanceof Error ? e.message : 'エラー';
+      if (isRetryableLoginFailure(msg)) {
+        await new Promise((r) => setTimeout(r, 2000));
+        try {
+          const r2 = await attempt();
+          setToken(r2.token);
+          router.push('/home');
+          return;
+        } catch (e2: unknown) {
+          setErr(e2 instanceof Error ? e2.message : 'エラー');
+          return;
+        }
+      }
+      setErr(msg);
     }
   }
 
@@ -74,7 +94,11 @@ export default function LoginPage() {
               className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none ring-navy-600 focus:ring-2"
             />
           </div>
-          {err && <p className="text-sm text-red-600">{err}</p>}
+          {err && (
+            <p className="whitespace-pre-wrap break-words text-sm text-red-600" role="alert">
+              {err}
+            </p>
+          )}
           <button
             type="submit"
             className="w-full rounded-lg bg-navy-900 py-2.5 text-sm font-medium text-white hover:bg-navy-800"

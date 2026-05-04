@@ -57,6 +57,14 @@ function networkErrorHint(url: string, net: unknown): string {
         ' Render のスリープ・CORS・一時的なネットワーク障害の可能性があります。数分後に再試行するか、NEXT_PUBLIC_API_DIRECT を外して同一オリジンの /api プロキシ経由にしてください。'
       );
     }
+    // 相対パス /api/...（本番の既定）。ブラウザ→Vercel は届いているが応答が返らない／途中で切れる場合も含む。
+    if (url.startsWith('/api')) {
+      return (
+        ' この画面のドメイン（Vercel）上の /api プロキシに届いていないか、プロキシから Render へ接続できていません。' +
+          'Vercel の Production に BACKEND_PROXY_TARGET（https://…onrender.com、末尾に /api なし）を設定して再デプロイし、' +
+          'Render の無料枠なら数十秒待ってからもう一度ログインしてください。'
+      );
+    }
     return (
       ' Vercel の環境変数 BACKEND_PROXY_TARGET / NEXT_PUBLIC_API_URL に Render のオリジン（https://...、末尾に /api なし）を設定し、再デプロイしてください。'
     );
@@ -66,7 +74,7 @@ function networkErrorHint(url: string, net: unknown): string {
 
 /** ブラウザがネットワーク層で失敗したとき（CORS・DNS・接続リセット等。本文が無い） */
 function isLikelyBrowserNetworkFailure(net: unknown): boolean {
-  return net instanceof Error && /failed to fetch|networkerror|load failed/i.test(net.message);
+  return net instanceof Error && /failed to fetch|networkerror|load failed|network request failed/i.test(net.message);
 }
 
 export const apiBaseUrl = (): string => {
