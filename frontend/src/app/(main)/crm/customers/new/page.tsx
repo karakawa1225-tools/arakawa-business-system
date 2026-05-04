@@ -16,6 +16,7 @@ export default function NewCustomerPage() {
     companyName: '',
     barcodeCode: '',
     phone: '',
+    postalCode: '',
     address: '',
     closingDay: '' as string,
     paymentTerms: '',
@@ -32,6 +33,7 @@ export default function NewCustomerPage() {
           companyName: f.companyName,
           barcodeCode: f.barcodeCode.trim() || null,
           phone: f.phone || null,
+          postalCode: f.postalCode.trim() || null,
           address: f.address || null,
           closingDay: f.closingDay ? Number(f.closingDay) : null,
           paymentTerms: f.paymentTerms || null,
@@ -54,6 +56,7 @@ export default function NewCustomerPage() {
             <Field label="会社名 *" value={f.companyName} onChange={(v) => setF({ ...f, companyName: v })} />
             <Field label="バーコード用コード" value={f.barcodeCode} onChange={(v) => setF({ ...f, barcodeCode: v })} />
             <Field label="電話" value={f.phone} onChange={(v) => setF({ ...f, phone: v })} />
+            <Field label="郵便番号" value={f.postalCode} onChange={(v) => setF({ ...f, postalCode: v })} />
             <Field label="締日" value={f.closingDay} onChange={(v) => setF({ ...f, closingDay: v })} />
           </div>
           <div>

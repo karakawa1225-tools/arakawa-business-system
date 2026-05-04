@@ -1,4 +1,5 @@
 import { triggerBlobDownload } from '@/lib/downloadBlob';
+import { apiBaseUrl, getToken } from '@/lib/api';
 
 const BOM = '\uFEFF';
 
@@ -17,10 +18,12 @@ export function downloadCustomerMasterDescriptionCsv() {
       'company_name,会社名,必須,正式社名,株式会社サンプル',
       'barcode_code,バーコード用コード,任意,バーコードスキャナ用の識別子,4901234567890',
       'phone,電話,任意,ハイフン可,03-1234-5678',
+      'postal_code,郵便番号,任意,ハイフンありなしどちらも可,1000001',
       'address,住所,任意,複数行はセル内改行可,東京都…',
       'closing_day,締日,任意,数値のみ（例: 25）,25',
       'payment_terms,支払サイト,任意,例: 月末締め翌月末払い,月末締め翌月末払い',
       'notes,備考,任意,社内向けメモ,',
+      '（運用）,同一顧客コード,,CSV内で重複がある場合は下の行が優先されます。既存の顧客コードは上書きされます。,',
     ].join('\r\n')
   );
 }
@@ -29,8 +32,8 @@ export function downloadCustomerImportTemplateCsv() {
   downloadCsv(
     'customer-import-template.csv',
     [
-      'customer_code,company_name,barcode_code,phone,address,closing_day,payment_terms,notes',
-      'C001,株式会社サンプル,4901234567890,03-0000-0000,東京都千代田区,25,月末締め翌月末払い,',
+      'customer_code,company_name,barcode_code,phone,postal_code,address,closing_day,payment_terms,notes',
+      'C001,株式会社サンプル,4901234567890,03-0000-0000,1000001,東京都千代田区,25,月末締め翌月末払い,',
     ].join('\r\n')
   );
 }
@@ -44,12 +47,14 @@ export function downloadSupplierMasterDescriptionCsv() {
       'name,仕入先名,必須,正式名称,○○商事株式会社',
       'barcode_code,バーコード用コード,任意,バーコードスキャナ用の識別子,4901234567890',
       'phone,電話,任意,,03-1111-2222',
+      'postal_code,郵便番号,任意,,5300001',
       'address,住所,任意,,大阪府…',
       'payment_terms,支払条件,任意,,月末締め翌月10日払い',
       'bank_name,銀行名,任意,振込先,みずほ銀行',
       'bank_branch,支店名,任意,,本店',
       'bank_account_number,口座番号,任意,半角数字,1234567',
       'bank_account_holder,口座名義,任意,カナ可,カ）サンプル',
+      '（運用）,同一仕入先コード,,CSV内で重複がある場合は下の行が優先されます。既存の仕入先コードは上書きされます。,',
     ].join('\r\n')
   );
 }
@@ -58,8 +63,8 @@ export function downloadSupplierImportTemplateCsv() {
   downloadCsv(
     'supplier-import-template.csv',
     [
-      'supplier_code,name,barcode_code,phone,address,payment_terms,bank_name,bank_branch,bank_account_number,bank_account_holder',
-      'S001,○○商事,4901234567890,03-0000-0000,,月末締め,,,,',
+      'supplier_code,name,barcode_code,phone,postal_code,address,payment_terms,bank_name,bank_branch,bank_account_number,bank_account_holder',
+      'S001,○○商事,4901234567890,03-0000-0000,5300001,,月末締め,,,,',
     ].join('\r\n')
   );
 }
@@ -82,8 +87,26 @@ export function downloadProductMasterDescriptionCsv() {
       'spec_text,仕様・備考,任意,改行はセル内改行で,ステンレス製',
       ',,,,',
       '※商品画像はCSVでは取り込めません。登録後に画面から追加してください。,,,,',
+      '（運用）,同一商品コード,,CSV内で重複がある場合は下の行が優先されます。既存の商品コードは上書きされます（画像URLは維持）。,,',
     ].join('\r\n')
   );
+}
+
+/** サーバーから勘定科目一覧を CSV 取得（要ログイン） */
+export async function downloadChartOfAccountsCsv() {
+  const token = getToken();
+  if (!token) {
+    window.alert('ログインが必要です');
+    return;
+  }
+  const url = `${apiBaseUrl()}/api/masters/accounts/export-csv`;
+  const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+  if (!res.ok) {
+    const t = await res.text();
+    throw new Error(t || `HTTP ${res.status}`);
+  }
+  const blob = await res.blob();
+  triggerBlobDownload(blob, 'chart-of-accounts.csv');
 }
 
 export function downloadProductImportTemplateCsv() {

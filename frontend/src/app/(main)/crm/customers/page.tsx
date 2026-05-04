@@ -17,6 +17,7 @@ type Customer = {
   company_name: string;
   barcode_code: string | null;
   phone: string | null;
+  postal_code: string | null;
 };
 
 export default function CustomersPage() {
@@ -61,6 +62,7 @@ export default function CustomersPage() {
               <th className="px-4 py-3 font-medium text-gunmetal-600">コード</th>
               <th className="px-4 py-3 font-medium text-gunmetal-600">会社名</th>
               <th className="px-4 py-3 font-medium text-gunmetal-600">バーコード用コード</th>
+              <th className="px-4 py-3 font-medium text-gunmetal-600">郵便番号</th>
               <th className="px-4 py-3 font-medium text-gunmetal-600">電話</th>
             </tr>
           </thead>
@@ -74,12 +76,13 @@ export default function CustomersPage() {
                 </td>
                 <td className="px-4 py-3">{c.company_name}</td>
                 <td className="px-4 py-3 text-gunmetal-600">{c.barcode_code ?? '—'}</td>
+                <td className="px-4 py-3 text-gunmetal-600">{c.postal_code ?? '—'}</td>
                 <td className="px-4 py-3 text-gunmetal-600">{c.phone ?? '—'}</td>
               </tr>
             ))}
             {rows.length === 0 && (
               <tr>
-                <td colSpan={4} className="px-4 py-8 text-center text-gunmetal-500">
+                <td colSpan={5} className="px-4 py-8 text-center text-gunmetal-500">
                   顧客がまだありません
                 </td>
               </tr>

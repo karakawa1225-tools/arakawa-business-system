@@ -15,6 +15,7 @@ export default function NewSupplierPage() {
     name: '',
     barcodeCode: '',
     phone: '',
+    postalCode: '',
     address: '',
     paymentTerms: '',
     bankName: '',
@@ -33,6 +34,7 @@ export default function NewSupplierPage() {
           name: f.name,
           barcodeCode: f.barcodeCode.trim() || null,
           phone: f.phone || null,
+          postalCode: f.postalCode.trim() || null,
           address: f.address || null,
           paymentTerms: f.paymentTerms || null,
           bankName: f.bankName || null,
@@ -78,6 +80,12 @@ export default function NewSupplierPage() {
             className="w-full rounded border px-3 py-2 text-sm"
             value={f.phone}
             onChange={(e) => setF({ ...f, phone: e.target.value })}
+          />
+          <input
+            placeholder="郵便番号"
+            className="w-full rounded border px-3 py-2 text-sm"
+            value={f.postalCode}
+            onChange={(e) => setF({ ...f, postalCode: e.target.value })}
           />
           <textarea
             placeholder="住所"

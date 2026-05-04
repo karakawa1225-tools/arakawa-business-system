@@ -20,6 +20,7 @@ export default function CustomerDetailPage() {
     companyName: '',
     barcodeCode: '',
     phone: '',
+    postalCode: '',
     address: '',
     closingDay: '',
     paymentTerms: '',
@@ -33,6 +34,7 @@ export default function CustomerDetailPage() {
         companyName: String(row.company_name ?? ''),
         barcodeCode: String(row.barcode_code ?? ''),
         phone: String(row.phone ?? ''),
+        postalCode: String(row.postal_code ?? ''),
         address: String(row.address ?? ''),
         closingDay: row.closing_day != null ? String(row.closing_day) : '',
         paymentTerms: String(row.payment_terms ?? ''),
@@ -51,6 +53,7 @@ export default function CustomerDetailPage() {
             companyName: f.companyName,
             barcodeCode: f.barcodeCode.trim() || null,
             phone: f.phone || null,
+            postalCode: f.postalCode.trim() || null,
             address: f.address || null,
             closingDay: f.closingDay ? Number(f.closingDay) : null,
             paymentTerms: f.paymentTerms || null,
@@ -64,6 +67,7 @@ export default function CustomerDetailPage() {
           companyName: String(row.company_name ?? ''),
           barcodeCode: String(row.barcode_code ?? ''),
           phone: String(row.phone ?? ''),
+          postalCode: String(row.postal_code ?? ''),
           address: String(row.address ?? ''),
           closingDay: row.closing_day != null ? String(row.closing_day) : '',
           paymentTerms: String(row.payment_terms ?? ''),
@@ -104,6 +108,9 @@ export default function CustomerDetailPage() {
             </p>
             <p>
               <span className="text-gunmetal-500">電話:</span> {String(c.phone ?? '—')}
+            </p>
+            <p>
+              <span className="text-gunmetal-500">郵便番号:</span> {String(c.postal_code ?? '—')}
             </p>
             <p>
               <span className="text-gunmetal-500">住所:</span> {String(c.address ?? '—')}
@@ -149,6 +156,12 @@ export default function CustomerDetailPage() {
               className="w-full rounded border px-3 py-2 text-sm"
               value={f.phone}
               onChange={(e) => setF({ ...f, phone: e.target.value })}
+            />
+            <input
+              className="w-full rounded border px-3 py-2 text-sm"
+              placeholder="郵便番号"
+              value={f.postalCode}
+              onChange={(e) => setF({ ...f, postalCode: e.target.value })}
             />
             <textarea
               className="w-full rounded border px-3 py-2 text-sm"

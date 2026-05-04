@@ -209,6 +209,36 @@ mastersRouter.get('/accounts', async (req: AuthedRequest, res) => {
   res.json(r.rows);
 });
 
+function csvEscapeCell(value: unknown): string {
+  const s = value == null || value === '' ? '' : String(value);
+  if (/[",\r\n]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
+  return s;
+}
+
+/** 勘定科目マスタを UTF-8 BOM 付き CSV でダウンロード */
+mastersRouter.get('/accounts/export-csv', async (req: AuthedRequest, res) => {
+  const r = await query(
+    `SELECT co.code, co.name, co.barcode_code, co.account_type::text AS account_type,
+            d.division_code, d.division_name
+     FROM chart_of_accounts co
+     JOIN chart_account_divisions d ON d.id = co.division_id
+     WHERE co.company_id = $1
+     ORDER BY d.division_code, co.code, co.name`,
+    [req.staff!.companyId]
+  );
+  const headers = ['code', 'name', 'barcode_code', 'account_type', 'division_code', 'division_name'];
+  const lines = [
+    headers.join(','),
+    ...r.rows.map((row) => {
+      const o = row as Record<string, unknown>;
+      return headers.map((h) => csvEscapeCell(o[h])).join(',');
+    }),
+  ];
+  res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+  res.setHeader('Content-Disposition', 'attachment; filename="chart-of-accounts.csv"');
+  res.send(`\uFEFF${lines.join('\r\n')}`);
+});
+
 /** 弥生式「勘定科目一覧」（3桁コード表）に基づく区分・科目の一括投入。既存コードはスキップ。 */
 mastersRouter.post('/accounts/import-yayoi-catalog', blockViewerWrite, async (req: AuthedRequest, res) => {
   try {

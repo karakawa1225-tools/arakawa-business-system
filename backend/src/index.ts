@@ -26,6 +26,7 @@ import { travelExpenseRouter } from './routes/travelExpense.js';
 import { payrollRouter } from './routes/payroll.js';
 import { searchRouter } from './routes/search.js';
 import { extractErrorDetail } from './utils/httpError.js';
+import { hintForDatabaseConnectError } from './utils/dbConnectionHint.js';
 import { pool } from './db/pool.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -73,11 +74,15 @@ app.get('/health', async (_req, res) => {
       capabilities: { arLedger: true, apLedger: true, travelExpenses: true, payroll: true },
     });
   } catch (e) {
+    const detail = extractErrorDetail(e);
+    const poolerHint = hintForDatabaseConnectError(detail);
     res.status(503).json({
       ok: false,
       database: 'error',
-      error: extractErrorDetail(e),
-      hint: 'PostgreSQL が起動しているか、DATABASE_URL が正しいか確認してください。タスクマネージャーで node を終了し、npm run dev:3001 をやり直すと復旧することがあります。',
+      error: detail,
+      hint:
+        poolerHint ??
+        'PostgreSQL が起動しているか、DATABASE_URL が正しいか確認してください。タスクマネージャーで node を終了し、npm run dev:3001 をやり直すと復旧することがあります。',
     });
   }
 });
@@ -138,6 +143,9 @@ app.listen(port, async () => {
     await pool.query('SELECT 1');
     console.log('DB接続: OK');
   } catch (e) {
-    console.error('DB接続: 失敗 —', extractErrorDetail(e));
+    const detail = extractErrorDetail(e);
+    console.error('DB接続: 失敗 —', detail);
+    const poolerHint = hintForDatabaseConnectError(detail);
+    if (poolerHint) console.error('DB接続: ヒント —', poolerHint);
   }
 });

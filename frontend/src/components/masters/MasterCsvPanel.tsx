@@ -3,7 +3,16 @@
 import { useRef, useState } from 'react';
 import { api } from '@/lib/api';
 
-type ImportResponse = { ok?: boolean; created: number; errors: { line: number; message: string }[] };
+type ImportResponse = {
+  ok?: boolean;
+  /** 成功件数（新規＋上書き） */
+  saved?: number;
+  inserted?: number;
+  updated?: number;
+  /** 後方互換 */
+  created?: number;
+  errors: { line: number; message: string }[];
+};
 
 type Props = {
   /** POST /api/.../import-csv */
@@ -28,9 +37,13 @@ export function MasterCsvPanel({ importApiPath, onImported, onDownloadGuide, onD
         method: 'POST',
         body: JSON.stringify({ csvText: text }),
       });
-      let msg = `${data.created} 件を登録しました。`;
+      const n = data.saved ?? data.created ?? 0;
+      let msg = `${n} 件を保存しました（同一コードは上書き）。`;
+      if (data.inserted != null && data.updated != null) {
+        msg += `\n新規: ${data.inserted} / 上書き: ${data.updated}`;
+      }
       if (data.errors?.length) {
-        msg += `\n\nスキップした行:\n${data.errors.map((er) => `行${er.line}: ${er.message}`).join('\n')}`;
+        msg += `\n\n失敗した行:\n${data.errors.map((er) => `行${er.line}: ${er.message}`).join('\n')}`;
       }
       window.alert(msg);
       onImported();

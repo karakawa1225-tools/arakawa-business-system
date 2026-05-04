@@ -38,7 +38,9 @@ productsRouter.post('/import-csv', blockViewerWrite, async (req: AuthedRequest, 
     return;
   }
   const companyId = req.staff!.companyId;
-  const created: string[] = [];
+  let saved = 0;
+  let inserted = 0;
+  let updated = 0;
   const errors: { line: number; message: string }[] = [];
   let lineBase = 2;
   for (const row of rows) {
@@ -64,9 +66,22 @@ productsRouter.post('/import-csv', blockViewerWrite, async (req: AuthedRequest, 
       supplierId = String(sr.rows[0].id);
     }
     try {
-      const r = await query(
+      const r = await query<{ was_insert: boolean }>(
         `INSERT INTO products (company_id, product_code, name, barcode_code, category, manufacturer, manufacturer_part_no, trusco_order_code, supplier_id, purchase_price, sale_price, photo_url, spec_text)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13) RETURNING id`,
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
+         ON CONFLICT (company_id, product_code) DO UPDATE SET
+           name = EXCLUDED.name,
+           barcode_code = EXCLUDED.barcode_code,
+           category = EXCLUDED.category,
+           manufacturer = EXCLUDED.manufacturer,
+           manufacturer_part_no = EXCLUDED.manufacturer_part_no,
+           trusco_order_code = EXCLUDED.trusco_order_code,
+           supplier_id = EXCLUDED.supplier_id,
+           purchase_price = EXCLUDED.purchase_price,
+           sale_price = EXCLUDED.sale_price,
+           spec_text = EXCLUDED.spec_text,
+           updated_at = NOW()
+         RETURNING (xmax = 0) AS was_insert`,
         [
           companyId,
           productCode,
@@ -83,18 +98,15 @@ productsRouter.post('/import-csv', blockViewerWrite, async (req: AuthedRequest, 
           pickCell(row, 'spec_text', 'spectext', '仕様・備考') || null,
         ]
       );
-      created.push(String(r.rows[0].id));
+      saved += 1;
+      if (r.rows[0]?.was_insert) inserted += 1;
+      else updated += 1;
     } catch (e: unknown) {
-      const err = e as { code?: string };
-      if (err.code === '23505') {
-        errors.push({ line: lineBase, message: `商品コード「${productCode}」が重複しています` });
-      } else {
-        errors.push({ line: lineBase, message: e instanceof Error ? e.message : '登録に失敗しました' });
-      }
+      errors.push({ line: lineBase, message: e instanceof Error ? e.message : '登録に失敗しました' });
     }
     lineBase += 1;
   }
-  res.json({ ok: true, created: created.length, errors });
+  res.json({ ok: true, saved, inserted, updated, created: saved, errors });
 });
 
 productsRouter.get('/:id', async (req: AuthedRequest, res) => {

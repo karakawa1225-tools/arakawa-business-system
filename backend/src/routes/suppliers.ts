@@ -28,7 +28,9 @@ suppliersRouter.post('/import-csv', blockViewerWrite, async (req: AuthedRequest,
     res.status(400).json({ error: `CSVの解析に失敗しました: ${e instanceof Error ? e.message : String(e)}` });
     return;
   }
-  const created: string[] = [];
+  let saved = 0;
+  let inserted = 0;
+  let updated = 0;
   const errors: { line: number; message: string }[] = [];
   let lineBase = 2;
   for (const row of rows) {
@@ -40,15 +42,29 @@ suppliersRouter.post('/import-csv', blockViewerWrite, async (req: AuthedRequest,
       continue;
     }
     try {
-      const r = await query(
-        `INSERT INTO suppliers (company_id, supplier_code, name, barcode_code, phone, address, payment_terms, bank_name, bank_branch, bank_account_number, bank_account_holder)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING id`,
+      const r = await query<{ was_insert: boolean }>(
+        `INSERT INTO suppliers (company_id, supplier_code, name, barcode_code, phone, postal_code, address, payment_terms, bank_name, bank_branch, bank_account_number, bank_account_holder)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
+         ON CONFLICT (company_id, supplier_code) DO UPDATE SET
+           name = EXCLUDED.name,
+           barcode_code = EXCLUDED.barcode_code,
+           phone = EXCLUDED.phone,
+           postal_code = EXCLUDED.postal_code,
+           address = EXCLUDED.address,
+           payment_terms = EXCLUDED.payment_terms,
+           bank_name = EXCLUDED.bank_name,
+           bank_branch = EXCLUDED.bank_branch,
+           bank_account_number = EXCLUDED.bank_account_number,
+           bank_account_holder = EXCLUDED.bank_account_holder,
+           updated_at = NOW()
+         RETURNING (xmax = 0) AS was_insert`,
         [
           req.staff!.companyId,
           supplierCode,
           name,
           pickCell(row, 'barcode_code', 'barcodecode', 'バーコード用コード', 'バーコード') || null,
           pickCell(row, 'phone', '電話') || null,
+          pickCell(row, 'postal_code', 'postalcode', '郵便番号', 'zip') || null,
           pickCell(row, 'address', '住所') || null,
           pickCell(row, 'payment_terms', 'paymentterms', '支払条件') || null,
           pickCell(row, 'bank_name', 'bankname', '銀行名') || null,
@@ -57,32 +73,30 @@ suppliersRouter.post('/import-csv', blockViewerWrite, async (req: AuthedRequest,
           pickCell(row, 'bank_account_holder', 'bankaccountholder', '口座名義') || null,
         ]
       );
-      created.push(String(r.rows[0].id));
+      saved += 1;
+      if (r.rows[0]?.was_insert) inserted += 1;
+      else updated += 1;
     } catch (e: unknown) {
-      const err = e as { code?: string };
-      if (err.code === '23505') {
-        errors.push({ line: lineBase, message: `仕入先コード「${supplierCode}」が重複しています` });
-      } else {
-        errors.push({ line: lineBase, message: e instanceof Error ? e.message : '登録に失敗しました' });
-      }
+      errors.push({ line: lineBase, message: e instanceof Error ? e.message : '登録に失敗しました' });
     }
     lineBase += 1;
   }
-  res.json({ ok: true, created: created.length, errors });
+  res.json({ ok: true, saved, inserted, updated, created: saved, errors });
 });
 
 suppliersRouter.post('/', blockViewerWrite, async (req: AuthedRequest, res) => {
   const b = req.body as Record<string, unknown>;
   try {
     const r = await query(
-      `INSERT INTO suppliers (company_id, supplier_code, name, barcode_code, phone, address, payment_terms, bank_name, bank_branch, bank_account_number, bank_account_holder)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING *`,
+      `INSERT INTO suppliers (company_id, supplier_code, name, barcode_code, phone, postal_code, address, payment_terms, bank_name, bank_branch, bank_account_number, bank_account_holder)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING *`,
       [
         req.staff!.companyId,
         b.supplierCode,
         b.name,
         typeof b.barcodeCode === 'string' ? b.barcodeCode.trim() || null : null,
         b.phone ?? null,
+        typeof b.postalCode === 'string' ? b.postalCode.trim() || null : null,
         b.address ?? null,
         b.paymentTerms ?? null,
         b.bankName ?? null,
@@ -105,13 +119,14 @@ suppliersRouter.post('/', blockViewerWrite, async (req: AuthedRequest, res) => {
 suppliersRouter.put('/:id', blockViewerWrite, async (req: AuthedRequest, res) => {
   const b = req.body as Record<string, unknown>;
   const r = await query(
-    `UPDATE suppliers SET supplier_code=$1, name=$2, barcode_code=$3, phone=$4, address=$5, payment_terms=$6, bank_name=$7, bank_branch=$8, bank_account_number=$9, bank_account_holder=$10, updated_at=NOW()
-     WHERE id=$11 AND company_id=$12 RETURNING *`,
+    `UPDATE suppliers SET supplier_code=$1, name=$2, barcode_code=$3, phone=$4, postal_code=$5, address=$6, payment_terms=$7, bank_name=$8, bank_branch=$9, bank_account_number=$10, bank_account_holder=$11, updated_at=NOW()
+     WHERE id=$12 AND company_id=$13 RETURNING *`,
     [
       b.supplierCode,
       b.name,
       typeof b.barcodeCode === 'string' ? b.barcodeCode.trim() || null : null,
       b.phone ?? null,
+      typeof b.postalCode === 'string' ? b.postalCode.trim() || null : null,
       b.address ?? null,
       b.paymentTerms ?? null,
       b.bankName ?? null,

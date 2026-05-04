@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { PageTitle } from '@/components/ui/PageTitle';
 import { Card } from '@/components/ui/Card';
 import { api, apiDelete } from '@/lib/api';
+import { downloadChartOfAccountsCsv } from '@/lib/masterCsv';
 import { runSave } from '@/lib/save';
 
 type Division = { id: string; division_code: string; division_name: string; account_type: string };
@@ -34,6 +35,7 @@ export default function AccountsMasterPage() {
   const [editBarcodeCode, setEditBarcodeCode] = useState('');
   const [editDivisionId, setEditDivisionId] = useState('');
   const [importBusy, setImportBusy] = useState(false);
+  const [exportBusy, setExportBusy] = useState(false);
 
   async function loadDivisions() {
     const d = await api<Division[]>('/api/masters/account-divisions');
@@ -126,6 +128,18 @@ export default function AccountsMasterPage() {
     if (ok && editingId === id) cancelEdit();
   }
 
+  async function exportAccountsCsv() {
+    if (exportBusy) return;
+    setExportBusy(true);
+    try {
+      await downloadChartOfAccountsCsv();
+    } catch (e) {
+      window.alert(e instanceof Error ? e.message : 'CSVの出力に失敗しました');
+    } finally {
+      setExportBusy(false);
+    }
+  }
+
   async function importYayoiCatalog() {
     if (importBusy) return;
     if (
@@ -176,14 +190,24 @@ export default function AccountsMasterPage() {
         <p className="mt-1 text-xs">
           添付の「勘定科目一覧」相当の3桁コード・科目名・集計用区分（現金預金／売上高／販管費など）をシステムに登録します。
         </p>
-        <button
-          type="button"
-          disabled={importBusy}
-          onClick={() => void importYayoiCatalog()}
-          className="mt-3 rounded-lg border border-navy-800 bg-white px-4 py-2 text-sm text-navy-900 disabled:opacity-50"
-        >
-          {importBusy ? '取り込み中…' : '弥生式・勘定科目一覧を取り込み'}
-        </button>
+        <div className="mt-3 flex flex-wrap gap-2">
+          <button
+            type="button"
+            disabled={importBusy}
+            onClick={() => void importYayoiCatalog()}
+            className="rounded-lg border border-navy-800 bg-white px-4 py-2 text-sm text-navy-900 disabled:opacity-50"
+          >
+            {importBusy ? '取り込み中…' : '弥生式・勘定科目一覧を取り込み'}
+          </button>
+          <button
+            type="button"
+            disabled={exportBusy}
+            onClick={() => void exportAccountsCsv()}
+            className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm text-navy-900 hover:bg-slate-50 disabled:opacity-50"
+          >
+            {exportBusy ? 'CSV出力中…' : '現在の勘定科目をCSV出力'}
+          </button>
+        </div>
       </Card>
       <Card className="mb-6 max-w-2xl">
         <form onSubmit={add} className="grid gap-2 sm:grid-cols-2">

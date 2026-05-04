@@ -12,6 +12,7 @@
 
 1. リポジトリルートに `.env` を作成（`.env.example` を参考に `DATABASE_URL` と `JWT_SECRET` を設定）
 2. PostgreSQL にスキーマ適用: `npm run db:init`（必要に応じて `database/` 配下の patch も実行）
+   - 既存DBに **郵便番号列** を足す場合: `npm run db:patch-postal-code`
 3. 起動:
 
 ```bash

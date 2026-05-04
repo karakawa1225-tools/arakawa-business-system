@@ -41,7 +41,9 @@ customersRouter.post('/import-csv', blockViewerWrite, async (req: AuthedRequest,
     res.status(400).json({ error: `CSVの解析に失敗しました: ${e instanceof Error ? e.message : String(e)}` });
     return;
   }
-  const created: string[] = [];
+  let saved = 0;
+  let inserted = 0;
+  let updated = 0;
   const errors: { line: number; message: string }[] = [];
   let lineBase = 2;
   for (const row of rows) {
@@ -53,9 +55,20 @@ customersRouter.post('/import-csv', blockViewerWrite, async (req: AuthedRequest,
       continue;
     }
     try {
-      const r = await query(
-        `INSERT INTO customers (company_id, customer_code, company_name, barcode_code, contact_name, phone, email, address, closing_day, payment_terms, notes)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING id`,
+      const r = await query<{ was_insert: boolean }>(
+        `INSERT INTO customers (company_id, customer_code, company_name, barcode_code, contact_name, phone, email, postal_code, address, closing_day, payment_terms, notes)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
+         ON CONFLICT (company_id, customer_code) DO UPDATE SET
+           company_name = EXCLUDED.company_name,
+           barcode_code = EXCLUDED.barcode_code,
+           phone = EXCLUDED.phone,
+           postal_code = EXCLUDED.postal_code,
+           address = EXCLUDED.address,
+           closing_day = EXCLUDED.closing_day,
+           payment_terms = EXCLUDED.payment_terms,
+           notes = EXCLUDED.notes,
+           updated_at = NOW()
+         RETURNING (xmax = 0) AS was_insert`,
         [
           req.staff!.companyId,
           customerCode,
@@ -64,24 +77,22 @@ customersRouter.post('/import-csv', blockViewerWrite, async (req: AuthedRequest,
           null,
           pickCell(row, 'phone', '電話') || null,
           null,
+          pickCell(row, 'postal_code', 'postalcode', '郵便番号', 'zip') || null,
           pickCell(row, 'address', '住所') || null,
           optionalSmallInt(pickCell(row, 'closing_day', 'closingday', '締日') || undefined),
           pickCell(row, 'payment_terms', 'paymentterms', '支払サイト', '支払条件') || null,
           pickCell(row, 'notes', '備考') || null,
         ]
       );
-      created.push(String(r.rows[0].id));
+      saved += 1;
+      if (r.rows[0]?.was_insert) inserted += 1;
+      else updated += 1;
     } catch (e: unknown) {
-      const err = e as { code?: string };
-      if (err.code === '23505') {
-        errors.push({ line: lineBase, message: `顧客コード「${customerCode}」が重複しています` });
-      } else {
-        errors.push({ line: lineBase, message: e instanceof Error ? e.message : '登録に失敗しました' });
-      }
+      errors.push({ line: lineBase, message: e instanceof Error ? e.message : '登録に失敗しました' });
     }
     lineBase += 1;
   }
-  res.json({ ok: true, created: created.length, errors });
+  res.json({ ok: true, saved, inserted, updated, created: saved, errors });
 });
 
 customersRouter.get('/:id', async (req: AuthedRequest, res) => {
@@ -100,8 +111,8 @@ customersRouter.post('/', blockViewerWrite, async (req: AuthedRequest, res) => {
   const b = req.body as Record<string, unknown>;
   try {
     const r = await query(
-      `INSERT INTO customers (company_id, customer_code, company_name, barcode_code, contact_name, phone, email, address, closing_day, payment_terms, notes)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING *`,
+      `INSERT INTO customers (company_id, customer_code, company_name, barcode_code, contact_name, phone, email, postal_code, address, closing_day, payment_terms, notes)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING *`,
       [
         req.staff!.companyId,
         b.customerCode,
@@ -110,6 +121,7 @@ customersRouter.post('/', blockViewerWrite, async (req: AuthedRequest, res) => {
         null,
         b.phone ?? null,
         null,
+        strOrNull(b.postalCode),
         b.address ?? null,
         optionalSmallInt(b.closingDay),
         b.paymentTerms === '' ? null : (b.paymentTerms as string | null) ?? null,
@@ -130,8 +142,8 @@ customersRouter.post('/', blockViewerWrite, async (req: AuthedRequest, res) => {
 customersRouter.put('/:id', blockViewerWrite, async (req: AuthedRequest, res) => {
   const b = req.body as Record<string, unknown>;
   const r = await query(
-    `UPDATE customers SET customer_code=$1, company_name=$2, barcode_code=$3, contact_name=$4, phone=$5, email=$6, address=$7, closing_day=$8, payment_terms=$9, notes=$10, updated_at=NOW()
-     WHERE id=$11 AND company_id=$12 RETURNING *`,
+    `UPDATE customers SET customer_code=$1, company_name=$2, barcode_code=$3, contact_name=$4, phone=$5, email=$6, postal_code=$7, address=$8, closing_day=$9, payment_terms=$10, notes=$11, updated_at=NOW()
+     WHERE id=$12 AND company_id=$13 RETURNING *`,
     [
       b.customerCode,
       b.companyName,
@@ -139,6 +151,7 @@ customersRouter.put('/:id', blockViewerWrite, async (req: AuthedRequest, res) =>
       null,
       b.phone ?? null,
       null,
+      strOrNull(b.postalCode),
       b.address ?? null,
       optionalSmallInt(b.closingDay),
       b.paymentTerms === '' ? null : (b.paymentTerms as string | null) ?? null,
