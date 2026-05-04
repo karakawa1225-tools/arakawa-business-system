@@ -51,6 +51,7 @@ npm run dev:3001
    | Name | 例 |
    |------|-----|
    | `BACKEND_PROXY_TARGET` | `https://your-api.example.com`（末尾 `/api` なし）。**必須推奨**（`/api` プロキシの転送先） |
+   | `BACKEND_FETCH_TIMEOUT_MS` | 任意。Vercel Hobby で Render 起動が遅いとき、既定 55000 のままだと関数が先に打ち切られ「Failed to fetch」になることがある。その場合 `9000` など短くすると先に 502 JSON で案内できる（長い PDF 等は Pro 推奨）。 |
    | `NEXT_PUBLIC_API_URL` | 上記と同じオリジンで可（プロキシ先のフォールバック）。ブラウザの既定は同一オリジンの `/api` のみ |
    | `NEXT_PUBLIC_API_DIRECT` | 任意。`1` / `true` のときだけブラウザが `NEXT_PUBLIC_API_URL` へ直接フェッチ（CORS が必要） |
 
