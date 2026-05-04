@@ -7,6 +7,14 @@ import { sendServerError } from '../utils/httpError.js';
 
 export const authRouter = Router();
 
+/** アドレスバーで GET すると 404 になり混乱しやすいため明示する */
+authRouter.get('/login', (_req, res) => {
+  res.status(405).json({
+    error:
+      'この URL は POST のみです。ブラウザのアドレスバーではログインできません。社内ログイン画面（/login）のフォームから「ログイン」を押してください。',
+  });
+});
+
 authRouter.post('/login', async (req, res) => {
   try {
     const { email, password } = req.body as { email?: string; password?: string };
