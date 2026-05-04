@@ -119,6 +119,22 @@ app.use('/api/travel-expenses', travelExpenseRouter);
 app.use('/api/payroll', payrollRouter);
 app.use('/api/search', searchRouter);
 
+/**
+ * Next.js（Vercel）側の診断用。Render をブラウザで直開きすると誤ってここに来ることがある。
+ * 汎用 404 のローカル向けヒントだけだと混乱するため、専用レスポンスを返す。
+ */
+app.get('/api/proxy-health', (_req, res) => {
+  res.status(200).json({
+    ok: false,
+    whereYouAre: 'render-api',
+    message:
+      'GET /api/proxy-health は Vercel にデプロイしたフロント（Next.js）専用の診断です。いま開いているのは Render 上の API のため、このパスはここでは提供しません。',
+    openOnVercelInstead:
+      '社内アプリのドメイン（…vercel.app 等）で同じパスを開いてください（例: https://＜Vercelのホスト＞/api/proxy-health）。',
+    renderHealthCheck: '/health',
+  });
+});
+
 /** 未定義パス（「Cannot GET …」の HTML 404 をやめ、フロントがヒントを表示できるようにする） */
 app.use((req: express.Request, res: express.Response) => {
   res.status(404).json({
