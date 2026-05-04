@@ -8,11 +8,12 @@ import { ArLedgerNewForm } from '../_components/ArLedgerNewForm';
 export default function ArLedgerNewPage() {
   const sp = useSearchParams();
   const listMonth = sp.get('month')?.match(/^\d{4}-\d{2}$/) ? sp.get('month')! : currentYearMonthLocal();
+  const initialCustomerId = sp.get('customerId')?.trim() || null;
 
   return (
     <>
       <PageTitle title="売掛金・新規" description="登録後、一覧（該当月）に戻ります。" />
-      <ArLedgerNewForm listMonth={listMonth} />
+      <ArLedgerNewForm listMonth={listMonth} initialCustomerId={initialCustomerId} />
     </>
   );
 }

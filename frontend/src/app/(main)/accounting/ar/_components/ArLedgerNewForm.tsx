@@ -33,9 +33,19 @@ function formatApiCatch(e: unknown): string {
   return 'エラー内容を取得できませんでした。開発者ツール（F12）の Network で /api/customers のステータスと本文を確認してください。';
 }
 
-export function ArLedgerNewForm({ listMonth }: { listMonth: string }) {
+export function ArLedgerNewForm({
+  listMonth,
+  initialCustomerId = null,
+}: {
+  listMonth: string;
+  /** 顧客一覧から戻るときの ?customerId=（1件取得でフォームに反映） */
+  initialCustomerId?: string | null;
+}) {
   const router = useRouter();
   const pdfRef = useRef<HTMLInputElement | null>(null);
+  const initialCustomerIdRef = useRef<string | null>(null);
+  initialCustomerIdRef.current = initialCustomerId?.trim() || null;
+
   const [customers, setCustomers] = useState<Customer[]>([]);
   /** API 失敗と「マスタ0件」を区別する（失敗時は空配列のままになりがち） */
   const [customersLoad, setCustomersLoad] = useState<'loading' | 'ok' | 'error'>('loading');
@@ -100,25 +110,81 @@ export function ArLedgerNewForm({ listMonth }: { listMonth: string }) {
         setCustomers(c);
         setCustomersLoad('ok');
         setCustomersLoadError('');
-        if (c[0]) {
+        const prefer = initialCustomerIdRef.current;
+        const chosen =
+          prefer && c.some((x) => x.id === prefer) ? c.find((x) => x.id === prefer)! : c[0];
+        if (chosen) {
           setF((p) => ({
             ...p,
-            customerId: c[0].id,
-            closingDay: String(c[0].closing_day ?? ''),
+            customerId: chosen.id,
+            closingDay: String(chosen.closing_day ?? ''),
           }));
         }
       })
       .catch((e) => {
         console.error('[ArLedgerNewForm] /api/customers', e);
-        setCustomers([]);
-        setCustomersLoad('error');
-        setCustomersLoadError(formatApiCatch(e).slice(0, 1200));
+        const errMsg = formatApiCatch(e).slice(0, 1200);
+        setCustomers((prev) => {
+          if (prev.length > 0) {
+            setCustomersLoad('ok');
+            setCustomersLoadError('');
+          } else {
+            setCustomersLoad('error');
+            setCustomersLoadError(errMsg);
+          }
+          return prev;
+        });
       });
   }, []);
 
   useEffect(() => {
     loadCustomers();
   }, [loadCustomers]);
+
+  /** 顧客一覧から ?customerId= で戻ったとき（一覧取得が失敗していても1件取得で復旧） */
+  useEffect(() => {
+    const id = initialCustomerId?.trim();
+    if (!id) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const row = await api<{
+          id: string;
+          customer_code?: string;
+          company_name?: string;
+          closing_day?: unknown;
+        }>(`/api/customers/${encodeURIComponent(id)}`);
+        if (cancelled) return;
+        const rawCd = row.closing_day;
+        const closingNum =
+          rawCd != null && rawCd !== '' && Number.isFinite(Number(rawCd)) ? Number(rawCd) : null;
+        const mapped: Customer = {
+          id: String(row.id),
+          customer_code: String(row.customer_code ?? ''),
+          company_name: String(row.company_name ?? ''),
+          closing_day:
+            closingNum != null && closingNum >= 1 && closingNum <= 31 ? closingNum : null,
+        };
+        setCustomers((prev) => {
+          const others = prev.filter((c) => c.id !== mapped.id);
+          return [mapped, ...others];
+        });
+        setF((p) => ({
+          ...p,
+          customerId: mapped.id,
+          closingDay: String(mapped.closing_day ?? ''),
+        }));
+        setNameQuery(mapped.company_name);
+        setCustomersLoad('ok');
+        setCustomersLoadError('');
+      } catch (err) {
+        console.error('[ArLedgerNewForm] /api/customers/:id', err);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [initialCustomerId]);
 
   /** ドロップダウン表示集合に選択中IDが無ければ先頭へ */
   useEffect(() => {
@@ -214,7 +280,7 @@ export function ArLedgerNewForm({ listMonth }: { listMonth: string }) {
           <div className="flex flex-wrap items-end justify-between gap-2">
             <label className="text-[11px] font-medium text-gunmetal-600">顧客（顧客マスタ）</label>
             <Link
-              href="/crm/customers"
+              href={`/crm/customers?pickFor=${encodeURIComponent(`/accounting/ar/new?month=${listMonth}`)}`}
               target="_blank"
               rel="noopener noreferrer"
               className="text-[11px] font-medium text-navy-800 underline decoration-slate-300 underline-offset-2 hover:decoration-navy-800"
@@ -297,7 +363,7 @@ export function ArLedgerNewForm({ listMonth }: { listMonth: string }) {
             </p>
           ) : null}
           <p className="mt-1 text-[10px] text-gunmetal-500">
-            上の一覧から顧客をクリックして選びます。上の入力で名前・コードを絞り込めます（締め日では一覧を絞りません）。絞り込み後に締め日まで一致する顧客が1件だけのとき、自動で選びます。
+            上の一覧から選ぶか、右上「顧客一覧を別タブで開く」から顧客コードを押すと、会社名が絞り込み欄に入ります。上の入力で名前・コードを絞り込めます（締め日では一覧を絞りません）。絞り込み後に締め日まで一致する顧客が1件だけのとき、自動で選びます。
           </p>
         </div>
         <div className="sm:col-span-2">
